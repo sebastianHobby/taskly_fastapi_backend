@@ -1,13 +1,14 @@
 # Database models
 import typing
 import uuid
+from datetime import datetime
 
-from sqlalchemy import TIMESTAMP, Column, String, Boolean, types, ForeignKey
+from sqlalchemy import TIMESTAMP, Column, String, Boolean, types, ForeignKey, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-
+from sqlalchemy.orm import declared_attr
 from ..core.database import Base
-
+from enum import Enum
 
 # The code below uses SqlAlchemy to define models which follow the
 # Class table inheritance pattern aka joined table inheritance
@@ -15,63 +16,62 @@ from ..core.database import Base
 # https://ruheni.dev/writing/sql-table-inheritance/ for background
 
 
-class TaskContainer(Base):
-    __tablename__ = "task_containers"
+# Mix in classes defined by SqlAlchemy see https://docs.sqlalchemy.org/en/20/orm/declarative_mixins.html
+# Used to add common fields or relationship to tables - i.e. composition (not inheritance)
+class HasCommonFields:
+    """Defines common fields for all tables"""
 
-    # Variables shared by all instances of TaskContainer and its child classes
+    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(default=func.now())
     id: Mapped[uuid.UUID] = mapped_column(
         types.Uuid, primary_key=True, default=uuid.uuid4
     )
-    createdAt = Column(
-        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
-    )
-    updatedAt = Column(TIMESTAMP(timezone=True), default=None, onupdate=func.now())
-    name: Mapped[str]
 
-    # Defining parent id here allows all sub types to have a parent of any
-    # task_container_type. SQL will perform a self join aka it will
-    # use the adjacency list design pattern https://docs.sqlalchemy.org/en/20/orm/self_referential.html
-    parent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("task_containers.id"))
+
+class TaskContainerTypes(Enum):
+    project = "project"
+    area = "area"
+
+
+# Base class defining what a task container looks like
+# Container examples might be Areas , projects etc
+# SQL alchemy framewok sets up single table inheritance
+# model to match class hierachy defined here with TaskContainer + Children
+# See https://docs.sqlalchemy.org/en/20/orm/inheritance.html
+class TaskContainer(Base, HasCommonFields):
+    __tablename__ = "task_containers"
+
+    name: Mapped[str]
+    description: Mapped[str] = mapped_column(String, nullable=True)
+    # Self reference i.e. Adjacent list design pattern for hierarchy structure
+    parent_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("task_containers.id"), nullable=True
+    )
     children = relationship("TaskContainer")
     # Discriminator attribute
-    type: Mapped[str]
-
+    type: Mapped[TaskContainerTypes]
     __mapper_args__ = {
         "polymorphic_identity": "task_containers",
         "polymorphic_on": "type",
     }
 
 
-# Projects extends area base table / class
 class Area(TaskContainer):
-    __tablename__ = "areas"
-    # Link to superset parent table
-    id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("task_containers.id"), primary_key=True
-    )
-    # Tell SQL alchemy to refer to this table when Area.type = project
-    __mapper_args__ = {
-        "polymorphic_identity": "areas",
-    }
+    # Tell SQL alchemy to refer to this table when task_container.type = project
+    __mapper_args__ = {"polymorphic_identity": TaskContainerTypes.area}
 
 
 class Project(TaskContainer):
-    __tablename__ = "projects"
-    # Link to superset parent table
-    id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("task_containers.id"), primary_key=True
-    )
     # Tell SQL alchemy to refer to this table when Area.type = project
     __mapper_args__ = {
-        "polymorphic_identity": "projects",
+        "polymorphic_identity": TaskContainerTypes.project,
     }
-
     # Project specific fields
-    deadline_date = Column(TIMESTAMP(timezone=True), default=None)
-    is_complete = Column(Boolean, nullable=False, default=True)
-    colour = Column(String, nullable=True)
-    # Last user review of this project
-    last_reviewed_date = Column(TIMESTAMP(timezone=True), default=None)
+    deadline_date: Mapped[datetime] = mapped_column(nullable=True)
+    last_reviewed_date: Mapped[datetime] = mapped_column(
+        nullable=True
+    )  # Last user review of this project
+    is_complete: Mapped[bool] = mapped_column(default=False)
 
 
 # Areas - Life values or areas (e.g. Family/Friends , role of Parent, Career)

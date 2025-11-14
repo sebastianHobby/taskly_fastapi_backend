@@ -35,10 +35,10 @@ class Task(Base):
     # with validation logic to say X type can have A,B,C parents types
 
     # Foreign keys - task can be stored under project OR area
-    area_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("areas_table.id"), nullable=True
-    )
-
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects_table.id"), nullable=True
-    )
+    # area_id: Mapped[uuid.UUID] = mapped_column(
+    #     ForeignKey("areas_table.id"), nullable=True
+    # )
+    #
+    # project_id: Mapped[uuid.UUID] = mapped_column(
+    #     ForeignKey("projects_table.id"), nullable=True
+    # )
