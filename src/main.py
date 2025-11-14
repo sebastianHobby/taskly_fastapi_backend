@@ -1,12 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .tasks.models import *
 
-# from .taskContainers.models import *
-
-from .core.database import create_database_and_tables
-from .taskContainers.router import area_router, project_router
-from .tasks.router import task_router
+from src.core.database import create_database_and_tables
+from src.routes.task_routes import task_router
+from src.routes.project_routes import project_router
+from src.routes.area_routes import area_router
 
 # Create required tables
 create_database_and_tables()

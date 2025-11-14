@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, create_engine
 from sqlmodel.pool import StaticPool
 
-from ..core.database import get_database_session, Base
-from ..main import app
+from src.core.database import get_database_session, Base
+from src.main import app
 
 
 # Pytest fixtures work by setting a name for each fixture

@@ -7,7 +7,7 @@ from sqlalchemy import TIMESTAMP, Column, String, Boolean, types, ForeignKey, UU
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.orm import declared_attr
-from ..core.database import Base
+from src.core.database import Base
 from enum import Enum
 
 # The code below uses SqlAlchemy to define models which follow the
@@ -26,6 +26,11 @@ class HasCommonFields:
     id: Mapped[uuid.UUID] = mapped_column(
         types.Uuid, primary_key=True, default=uuid.uuid4
     )
+
+
+class HasStartDateAndDeadline:
+    deadline_date: Mapped[datetime] = mapped_column(nullable=True)
+    start_date: Mapped[datetime] = mapped_column(default=func.now(), nullable=True)
 
 
 class TaskContainerTypes(Enum):
@@ -74,47 +79,12 @@ class Project(TaskContainer):
     is_complete: Mapped[bool] = mapped_column(default=False)
 
 
-# Areas - Life values or areas (e.g. Family/Friends , role of Parent, Career)
-# class Area(Base):
-#     __tablename__ = "areas_table"
-#     # Generic table fields common to all models
-#     id: Mapped[uuid.UUID] = mapped_column(
-#         types.Uuid, primary_key=True, default=uuid.uuid4
-#     )
-#     createdAt = Column(
-#         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
-#     )
-#     updatedAt = Column(TIMESTAMP(timezone=True), default=None, onupdate=func.now())
-#
-#     name = Column(String, nullable=False)
-#     # SQL alchemy requires parent/child object to both define relationship between tables
-#     child_projects: Mapped[typing.List["Project"]] = relationship()
-#     child_tasks: Mapped[typing.List["Task"]] = relationship()
-#
-#
-# # Projects - Groups of tasks required to achieve a specific goal
-# class Project(Base):
-#     __tablename__ = "projects_table"
-#
-#     # Generic table fields common to all models
-#     id: Mapped[uuid.UUID] = mapped_column(
-#         types.Uuid, primary_key=True, default=uuid.uuid4
-#     )
-#     createdAt = Column(
-#         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
-#     )
-#     updatedAt = Column(TIMESTAMP(timezone=True), default=None, onupdate=func.now())
-#
-#     # Project specific fields
-#     name = Column(String, nullable=False)
-#     description = Column(String, nullable=True)
-#     deadline_date = Column(TIMESTAMP(timezone=True), default=None)
-#     is_complete = Column(Boolean, nullable=False, default=True)
-#     colour = Column(String, nullable=True)
-#     # Last user review of this project
-#     last_reviewed_date = Column(TIMESTAMP(timezone=True), default=None)
-#
-#     # Foreign keys
-#     area_id: Mapped[uuid.UUID | None] = mapped_column(
-#         ForeignKey("areas_table.id"), nullable=True
-#     )
+# Now switch to task model
+class Task(Base, HasCommonFields, HasStartDateAndDeadline):
+    __tablename__ = "tasks"
+    name: Mapped[str]
+    description: Mapped[str] = mapped_column(String, nullable=True)
+    is_complete = Column(Boolean, nullable=False, default=False)
+    container_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("task_containers.id"), nullable=True
+    )
