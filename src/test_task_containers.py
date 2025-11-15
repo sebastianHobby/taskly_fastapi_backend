@@ -18,7 +18,7 @@ from src.routes.task_routes import task_router
 from src.schemas import *
 
 
-@pytest.fixture(name="session_fixture", scope="function")
+@pytest.fixture(name="session_fixture", scope="function", autouse=True)
 def session_fixture():
     # Create in memory database for testing
     engine = create_engine(
@@ -30,7 +30,7 @@ def session_fixture():
         yield session
 
 
-@pytest.fixture(name="client_fixture", scope="function")
+@pytest.fixture(name="client_fixture", scope="function", autouse=True)
 def client_fixture(session_fixture: Session):
     def get_session_override():
         return session_fixture
@@ -53,195 +53,126 @@ def validate_schema_is_subset_of_database_model(
     for schema_key, schema_value in schema_as_dict.items():
         # comparison = f"Checking database has {schema_key} with value {schema_value}"
         # print(comparison)
-        assert (
-            getattr(db_model, schema_key) == schema_value
-        )  # Assert db model has field with same name and value as schema
+        assert getattr(db_model, schema_key) == schema_value
+        # Assert db model has field with same name and value as schema
     # for var, value in project_request.model_dump().items():
     #     setattr(project, var, value) if value is not None else None
 
 
-class TestProjectsWithScenarios:
-
-    project_mandatory_fields_only_dict = {
-        "description": "description",
-        "name": "Mandatory fields only",
-        "is_complete": True,
-    }
-    project_all_fields_except_parent_dict = {
-        "description": "description",
-        "name": "All fields except parent",
-        "is_complete": True,
-        "start_date": (datetime.today() - timedelta(weeks=4)),
-        "deadline_date": (datetime.today() + timedelta(weeks=4)),
-        "last_reviewed_date": (datetime.today() + timedelta(weeks=4)),
-    }
-
-    areaUUID = UUID
-    area_all_fields_dict = {
-        "description": "area all fields",
-        "name": "area fields only",
-        "last_reviewed_date": (datetime.today()),
-    }
-
-    @pytest.mark.parametrize(
-        "db_project_dict,create_parent_area",
-        [
-            (project_all_fields_except_parent_dict, False),
-            (project_all_fields_except_parent_dict, True),
-        ],
-        ids=[
-            "single project all fields except parent",
-            "single project all fields with parent",
-        ],
-    )
-    def test_project_get(
-        self,
-        client_fixture: TestClient,
-        session_fixture: Session,
-        db_project_dict: dict,
-        create_parent_area: bool,
-    ):
-        # Set up data in our temp test DB
-        parent_area = None
-        if create_parent_area:
-            parent_area = Area(
-                name="parent area", description="parent_area description"
-            )
-            session_fixture.add(parent_area)
-            session_fixture.commit()
-
-        if db_project_dict:
-            db_project = Project(**db_project_dict)
-            if parent_area:
-                db_project.parent_area = parent_area
-            session_fixture.add(db_project)
-            session_fixture.commit()
-
-        response = client_fixture.get(f"/projects/{db_project.id}")
-        assert response.status_code == 200
-
-        # Load into schema model for initial type validations
-        schema_project = ProjectGet.model_validate(response.json())
-        # Check any values in schema have matching field in database object. Note DB object is superset (i.e. has extra data)
-        validate_schema_is_subset_of_database_model(
-            db_model=db_project, schema_model=schema_project
-        )
-
-    def test_project_get_invalid_id(self, client_fixture: TestClient):
+class TestProjects:
+    def test_get_invalid_id(self, client_fixture, session_fixture):
         response = client_fixture.get(f"/projects/123")
         assert response.status_code == 404
 
-    #
-    @pytest.mark.parametrize(
-        "db_projects_dict,create_parent_area",
-        [
-            (
-                [
-                    project_mandatory_fields_only_dict,
-                    project_all_fields_except_parent_dict,
-                ],
-                False,
-            ),
-            ([], False),
-            (
-                [
-                    project_mandatory_fields_only_dict,
-                    project_all_fields_except_parent_dict,
-                ],
-                True,
-            ),
-        ],
-        ids=[
-            "Multiples project no parent",
-            "No data",
-            "Multiples project with PARENT ",
-        ],
-    )
-    def test_get_invalid_project_id(clientFixture: TestClient, sessionFixture: Session):
-        response = clientFixture.get(f"/projects/123")
-        assert response.status_code == 404
+    def test_get_by_id(self, session_fixture, client_fixture):
+        # Setup test data
+        db_project = Project(
+            name="my test project",
+            description="my test project",
+            start_date=datetime.now(),
+            deadline_date=(datetime.now() + timedelta(weeks=3)),
+            type=TaskContainerTypes.project,
+        )
+        session_fixture.add(db_project)
+        session_fixture.commit()
 
-    def test_projects_get_all(
-        self,
-        client_fixture: TestClient,
-        session_fixture: Session,
-        db_projects_dict: dict,
-        create_parent_area: bool,
-    ):
-        db_areas = []
-        db_projects = []
-        parent_area = None
-        if create_parent_area:
-            parent_area = Area(
-                name="parent area", description="parent_area description"
-            )
-            session_fixture.add(parent_area)
-            session_fixture.commit()
-
-        if db_projects_dict and len(db_projects_dict):
-            db_projects = [Project(**x) for x in db_projects_dict]
-            if parent_area:
-                for project in db_projects:
-                    project.parent_id = parent_area.id
-            session_fixture.add_all(db_projects)
-
-        response = client_fixture.get("/projects/")
-        assert response.status_code == 200
+        response = client_fixture.get(f"/projects/{db_project.id}")
         data = response.json()
+        assert response.status_code == 200
 
-        schema_models = []
+        # Confirm the data returned in schema matches the corresponding fields in database
+        schema = ProjectGet.model_validate(data)
+        validate_schema_is_subset_of_database_model(
+            db_model=db_project, schema_model=schema
+        )
+
+    def test_get_all(self, session_fixture, client_fixture):
+        # Setup test data
+        db_projects = []
+        schemas = []
+        db_project_all_fields = Project(
+            name="my test project",
+            description="my test project",
+            start_date=datetime.now(),
+            deadline_date=(datetime.now() + timedelta(weeks=3)),
+            type=TaskContainerTypes.project,
+        )
+        session_fixture.add(db_project_all_fields)
+        db_projects.append(db_project_all_fields)
+
+        db_project_mand_fields_only = Project(
+            name="my test project",
+            description="my test project",
+            type=TaskContainerTypes.project,
+        )
+        session_fixture.add(db_project_mand_fields_only)
+        db_projects.append(db_project_mand_fields_only)
+
+        db_area = Area(name="my test area", description="my test area description")
+        session_fixture.add(db_area)
+
+        db_project_with_parent_area = Project(
+            name="my test project",
+            description="my test project",
+            start_date=datetime.now(),
+            deadline_date=(datetime.now() + timedelta(weeks=3)),
+            type=TaskContainerTypes.project,
+            parent_id=db_area.id,
+        )
+
+        session_fixture.add(db_project_with_parent_area)
+        db_projects.append(db_project_with_parent_area)
+
+        session_fixture.commit()
+
+        response = client_fixture.get(f"/projects")
+        data = response.json()
+        assert response.status_code == 200
+
         for line in data:
-            schema_models.append(ProjectGet.model_validate(line))
+            schemas.append(ProjectGet.model_validate(line))
 
+        # Confirm the data returned in schema matches the corresponding fields in database
         for db_project in db_projects:
-            matching_schema_found = False
-            # session_fixture.refresh(db_project)
-            for schema in schema_models:
-                if schema.id == db_project.id:
-                    matching_schema_found = True
+            match_found = False
+            for schema_model in schemas:
+                if db_project.id == schema_model.id:
+                    match_found = True
                     validate_schema_is_subset_of_database_model(
-                        db_model=db_project, schema_model=schema
+                        db_model=db_project, schema_model=schema_model
                     )
-            assert matching_schema_found == True
+            assert match_found
 
-    # Load response JSON into schema (pydantic model)ProjectGet
+    def test_create_project(self, client_fixture, session_fixture):
+        # Create area as parent
+        db_area = Area(name="my test area", description="my test area description")
+        session_fixture.add(db_area)
+        session_fixture.commit()
 
-    @pytest.mark.parametrize(
-        "db_project_dict,create_parent_area",
-        [
-            (project_all_fields_except_parent_dict, False),
-            (project_all_fields_except_parent_dict, True),
-            (project_mandatory_fields_only_dict, True),
-            (project_mandatory_fields_only_dict, False),
-        ],
-        ids=[
-            "single project all fields without parent "
-            "single project all fields with parent",
-            "single project mandatory fields only with parent",
-            "single project mandatory fields only without parent",
-        ],
-    )
-    # def test_project_create(
-    #     client_fixture: TestClient, db_project_dict: dict, create_parent_area: bool
-    # ):
-    #     # Todo fix me
-    #     response = client_fixture.post(
-    #         "/projects/",
-    #         json={
-    #             "name": "My test project",
-    #             "description": "Created by My test project",
-    #             "is_complete": "true",
-    #         },
-    #     )
-    #     # Validate response
-    #     data = response.json()
-    #     assert response.status_code == 200
-    #     assert data["name"] == "My test project"
-    #     assert data["id"] is not None
-    #     assert data["description"] == "Created by My test project"
-    #     assert data["is_complete"] == True
+        # First test insert with mandatory fields only
+        request_json = {
+            "name": "My test project",
+            "description": "Created by My test project",
+        }
+        response = client_fixture.post("/projects/", json=request_json)
+        assert response.status_code == 200
+        responseSchema = ProjectGet.model_validate(response.json())
+        db_project_load = session_fixture.get(Project, responseSchema.id)
+
+        # Compare the object returned by POST against database
+        validate_schema_is_subset_of_database_model(
+            db_model=db_project_load, schema_model=responseSchema
+        )
+        # Compare project create schema based on our reguest against database
+        projectCreateSchema = ProjectCreate(**request_json)
+        validate_schema_is_subset_of_database_model(
+            db_model=db_project_load, schema_model=projectCreateSchema
+        )
 
 
+# Todo finish project test cases , area test cases and task
+
+#     )
 # #
 # # def test_create_area(clientFixture: TestClient, sessionFixture: Session):
 # #     # Create area object

@@ -8,21 +8,13 @@ from src import models
 from src.models import TaskContainerTypes, TaskContainer
 
 
-def get_task_container_by_id(
-    uuid: UUID, database: Session, task_container: TaskContainerTypes
-) -> TaskContainer:
+def get_task_container_by_id(uuid: UUID, database: Session) -> TaskContainer:
     parentContainer = None
     if uuid is not None:
         parentContainer = (
             database.query(models.TaskContainer)
             .filter(models.TaskContainer.id == uuid)
-            .filter(models.TaskContainer.type == task_container)
             .first()
-        )
-    if parentContainer is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task container id or parent_id is invalid",
         )
     return parentContainer
 

@@ -56,7 +56,7 @@ class ProjectGet(TaskContainerGet):
 
 
 class ProjectCreate(TaskContainerCreate):
-    is_complete: bool
+    is_complete: bool | None = False
     deadline_date: datetime | None = None
     start_date: datetime | None = None
 

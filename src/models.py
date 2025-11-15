@@ -30,7 +30,7 @@ class HasCommonFields:
 
 class HasStartDateAndDeadline:
     deadline_date: Mapped[datetime] = mapped_column(nullable=True)
-    start_date: Mapped[datetime] = mapped_column(default=func.now(), nullable=True)
+    start_date: Mapped[datetime] = mapped_column(nullable=True)
 
 
 class TaskContainerTypes(Enum):
