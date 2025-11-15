@@ -48,6 +48,9 @@ class TaskContainer(Base, HasCommonFields):
 
     name: Mapped[str]
     description: Mapped[str] = mapped_column(String, nullable=True)
+    last_reviewed_date: Mapped[datetime] = mapped_column(
+        nullable=True
+    )  # Last user review of this task container
     # Self reference i.e. Adjacent list design pattern for hierarchy structure
     parent_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("task_containers.id"), nullable=True
@@ -66,16 +69,13 @@ class Area(TaskContainer):
     __mapper_args__ = {"polymorphic_identity": TaskContainerTypes.area}
 
 
-class Project(TaskContainer):
+class Project(TaskContainer, HasStartDateAndDeadline):
     # Tell SQL alchemy to refer to this table when Area.type = project
     __mapper_args__ = {
         "polymorphic_identity": TaskContainerTypes.project,
     }
     # Project specific fields
-    deadline_date: Mapped[datetime] = mapped_column(nullable=True)
-    last_reviewed_date: Mapped[datetime] = mapped_column(
-        nullable=True
-    )  # Last user review of this project
+
     is_complete: Mapped[bool] = mapped_column(default=False)
 
 

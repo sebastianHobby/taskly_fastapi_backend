@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from src.models import TaskContainerTypes
+from src.models import TaskContainerTypes, Project, Area, Task
 from .. import schemas
 from ..core.database import get_database_session
 from ..core.router_util import get_task_container_by_id, create_uuid_from_string
@@ -17,7 +17,7 @@ SessionDep = Annotated[Session, Depends(get_database_session)]
     "/projects", status_code=status.HTTP_200_OK, response_model=list[schemas.ProjectGet]
 )
 async def get_projects(database: SessionDep):
-    projects_query = database.query(models.Project)
+    projects_query = database.query(Project)
     return projects_query.all()
 
 

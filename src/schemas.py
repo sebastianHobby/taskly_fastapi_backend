@@ -51,12 +51,14 @@ class TaskContainerUpdate(TaskContainerCreate):
 class ProjectGet(TaskContainerGet):
     is_complete: bool
     deadline_date: datetime | None = None
+    start_date: datetime | None = None
     type: TaskContainerTypes
 
 
 class ProjectCreate(TaskContainerCreate):
     is_complete: bool
     deadline_date: datetime | None = None
+    start_date: datetime | None = None
 
 
 class ProjectUpdate(ProjectCreate):
@@ -64,6 +66,7 @@ class ProjectUpdate(ProjectCreate):
     id: UUID
     is_complete: bool
     deadline_date: datetime | None = None
+    start_date: datetime | None = None
 
 
 class AreaGet(TaskContainerGet):
