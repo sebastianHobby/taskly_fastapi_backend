@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, create_engine
 from sqlmodel.pool import StaticPool
 
-from src.core.database import get_database_session, Base
+from src.core.database import get_database_session, SQLAlchemyBase
 from src.main import app
 from src.models import *
 from src.routes.task_routes import task_router
@@ -24,8 +24,10 @@ def session_fixture():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    Base.metadata.drop_all(bind=engine)  # Drop data from any previous test runs
-    Base.metadata.create_all(bind=engine)
+    SQLAlchemyBase.metadata.drop_all(
+        bind=engine
+    )  # Drop data from any previous test runs
+    SQLAlchemyBase.metadata.create_all(bind=engine)
     with Session(engine) as session:
         yield session
 
@@ -43,7 +45,7 @@ def client_fixture(session_fixture: Session):
 
 
 def validate_schema_is_subset_of_database_model(
-    db_model: Base, schema_model: BaseModel
+    db_model: SQLAlchemyBase, schema_model: BaseModel
 ) -> None:
     """Generic method to compare pydantic model (schema) against SQL alchemy database model.
     We expect the database model to be a superset of the any pydantic schema. Pydantic schemas

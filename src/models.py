@@ -7,7 +7,7 @@ from sqlalchemy import TIMESTAMP, Column, String, Boolean, types, ForeignKey, UU
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.orm import declared_attr
-from src.core.database import Base
+from src.core.database import SQLAlchemyBase
 from enum import Enum
 
 # The code below uses SqlAlchemy to define models which follow the
@@ -43,7 +43,7 @@ class TaskContainerTypes(Enum):
 # SQL alchemy framewok sets up single table inheritance
 # model to match class hierachy defined here with TaskContainer + Children
 # See https://docs.sqlalchemy.org/en/20/orm/inheritance.html
-class TaskContainer(Base, HasCommonFields):
+class TaskContainer(SQLAlchemyBase, HasCommonFields):
     __tablename__ = "task_containers"
 
     name: Mapped[str]
@@ -80,7 +80,7 @@ class Project(TaskContainer, HasStartDateAndDeadline):
 
 
 # Now switch to task model
-class Task(Base, HasCommonFields, HasStartDateAndDeadline):
+class Task(SQLAlchemyBase, HasCommonFields, HasStartDateAndDeadline):
     __tablename__ = "tasks"
     name: Mapped[str]
     description: Mapped[str] = mapped_column(String, nullable=True)
