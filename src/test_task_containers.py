@@ -163,7 +163,7 @@ class TestProjects:
         validate_schema_is_subset_of_database_model(
             db_model=db_project_load, schema_model=responseSchema
         )
-        # Compare project create schema based on our reguest against database
+        # Compare project create schema based on our reguest against database values
         projectCreateSchema = ProjectCreate(**request_json)
         validate_schema_is_subset_of_database_model(
             db_model=db_project_load, schema_model=projectCreateSchema
