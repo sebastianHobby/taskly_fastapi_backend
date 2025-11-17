@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from starlette import status
 
 from src import models
-from src.models import TaskContainerTypes, TaskContainer
+from src.models.TaskContainerModel import TaskContainer
 
 
 def get_task_container_by_id(uuid: UUID, database: Session) -> TaskContainer:

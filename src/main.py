@@ -1,25 +1,24 @@
-import asyncio
-
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-from src.core.database import create_database_and_tables
-
-from src.models import *
+import fastapi.middleware.cors
+from src.schemas import *
+from src.core.database import create_database
 from src.routes.task_routes import task_router
 from src.routes.project_routes import project_router
 from src.routes.area_routes import area_router
 
-# Create required tables
-# create_database_and_tables()
-# asyncio.run(create_database_and_tables())
 
-app = FastAPI()
+# This method is called when fast API app object is instantiated and
+# returns to function after Yield when shutting down
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Pre app init code here
+    create_database()
+    yield
+    # Any app shutdown logic here
 
 
-@app.on_event("startup")
-def initialize_startup():
-    create_database_and_tables()
+app = FastAPI(lifespan=lifespan)
 
 
 # CORS setup
@@ -28,7 +27,7 @@ origins = [
     "https://localhost:8081",
 ]
 app.add_middleware(
-    CORSMiddleware,
+    fastapi.middleware.cors.CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],

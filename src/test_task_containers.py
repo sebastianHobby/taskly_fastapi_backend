@@ -1,21 +1,18 @@
-import copy
-import os
-import uuid
-from datetime import datetime
-import json
-from typing import Literal
-
 import pytest
-from pytest import Metafunc
 from fastapi.testclient import TestClient
 from sqlmodel import Session, create_engine
 from sqlmodel.pool import StaticPool
 
-from src.core.database import get_database_session, SQLAlchemyBase
+from src.core.database import get_database_session
 from src.main import app
-from src.models import *
-from src.routes.task_routes import task_router
-from src.schemas import *
+from src.models.AreaModel import Area
+from src.models.ProjectModel import Project
+from src.schemas.ProjectSchemas import ProjectGet, ProjectCreate
+from src.schemas.MixinSchemas import *
+from src.schemas.MixinSchemas import TaskContainerTypes
+
+
+# Todo expand tests to cover all routes
 
 
 @pytest.fixture(name="session_fixture", scope="function", autouse=True)
@@ -45,7 +42,7 @@ def client_fixture(session_fixture: Session):
 
 
 def validate_schema_is_subset_of_database_model(
-    db_model: SQLAlchemyBase, schema_model: BaseModel
+    db_model: SQLAlchemyBase, schema_model: ApiBaseSchema
 ) -> None:
     """Generic method to compare pydantic model (schema) against SQL alchemy database model.
     We expect the database model to be a superset of the any pydantic schema. Pydantic schemas
