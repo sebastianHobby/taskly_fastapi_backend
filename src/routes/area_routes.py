@@ -14,6 +14,7 @@ from ..schemas.AreaSchemas import *
 area_router = APIRouter()
 
 
+# Todo consider if this should be async or not
 @area_router.get("/areas", status_code=status.HTTP_200_OK, response_model=list[AreaGet])
 def get_areas(area_repository=Depends(AreaRepository)):
     area_get_schemas = area_repository.get_all()
