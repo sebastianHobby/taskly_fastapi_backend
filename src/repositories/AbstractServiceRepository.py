@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.schemas.ApiBaseSchema import ApiBaseSchema
 
 
+# todo add doc strings documenting error types that these functions can return + what they do
+# Child classes should adhere to this even if not enforced
+# This interface is more of a helper for dev to read and see what the interface is expected to do
 class AbstractServiceRepository(ABC):
     """Base service repository class defining the interface that all service repositories must adhere to"""
 

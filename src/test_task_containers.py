@@ -5,8 +5,7 @@ from sqlmodel.pool import StaticPool
 
 from src.core.database import get_database_session
 from src.main import app
-from src.models.AreaModel import Area
-from src.models.ProjectModel import Project
+from src.models.db_models import Project, Area
 from src.schemas.ProjectSchemas import ProjectGet, ProjectCreate
 from src.schemas.MixinSchemas import *
 from src.schemas.MixinSchemas import TaskContainerTypes

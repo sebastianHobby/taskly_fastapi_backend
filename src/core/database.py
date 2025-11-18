@@ -3,7 +3,7 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
 import src.models
-from src.models.DatabaseBaseModel import DatabaseBaseModel
+from src.models.db_models import DatabaseBaseModel
 
 engine = create_engine(
     "sqlite:///tasklyData.db", connect_args={"check_same_thread": False}

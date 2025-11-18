@@ -6,8 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import Session
 
 from src.core.database import get_database_session
-from src.models.DatabaseBaseModel import DatabaseBaseModel
-from src.models.ProjectModel import Project
+from src.models.db_models import Project, DatabaseBaseModel
 from src.repositories.AbstractServiceRepository import AbstractServiceRepository
 from src.schemas.ApiBaseSchema import ApiBaseSchema
 from typing import List
@@ -38,18 +37,20 @@ class DatabaseRepository(AbstractServiceRepository):
         database_model_class: DatabaseBaseModel,
         public_schema_class: ApiBaseSchema,
         create_schema_class: ApiBaseSchema,
-        update_schema: ApiBaseSchema,
+        update_schema_class: ApiBaseSchema,
+        database_session: Session,
     ) -> None:
         # self.model_c = ModelCrudFunctions(model_class=Project)
         self.model_class = database_model_class
         self.public_schema = public_schema_class
         self.create_schema = create_schema_class
-        self.update_schema = update_schema
-        self.session = next(get_database_session())
+        self.update_schema = update_schema_class
+        # Todo consider making this a input for dependency inversion / DIP - think about benefits vs trade offs first
+        self.database_session = database_session
         self.pk_field_name = "id"
 
     def _get_database_object_by_uuid(self, _uuid: UUID) -> DatabaseBaseModel:
-        db_model = self.session.get(self.model_class, _uuid)
+        db_model = self.database_session.get(self.model_class, _uuid)
         if not db_model:
             raise DataModelNotFound()
         return db_model
@@ -78,7 +79,7 @@ class DatabaseRepository(AbstractServiceRepository):
     def get_all(self) -> List[ApiBaseSchema]:
         try:
             q = select(self.model_class)
-            results = self.session.scalars(q).all()
+            results = self.database_session.scalars(q).all()
             response_schemas = []
             for db in results:
                 response_schemas.append(self.public_schema.model_validate(db))
@@ -104,9 +105,9 @@ class DatabaseRepository(AbstractServiceRepository):
         """
         try:
             db_model = self.model_class(**create_schema.model_dump())
-            self.session.add(db_model)
-            self.session.commit()
-            self.session.refresh(db_model)
+            self.database_session.add(db_model)
+            self.database_session.commit()
+            self.database_session.refresh(db_model)
             response_schema = self.public_schema.model_validate(db_model)
             return response_schema
         except IntegrityError:
@@ -117,7 +118,9 @@ class DatabaseRepository(AbstractServiceRepository):
         except Exception as e:
             raise DataModelException(f"Unknown error occurred: {e}") from e
 
-        new_project = self.data_access.create(data=create_schema, session=self.session)
+        new_project = self.data_access.create(
+            data=create_schema, session=self.database_session
+        )
         return new_project
 
     def update(self, uuid: UUID, update_schema: ApiBaseSchema) -> ApiBaseSchema:
@@ -128,8 +131,8 @@ class DatabaseRepository(AbstractServiceRepository):
             for k, v in update_values_dict.items():
                 setattr(db_model, k, v)
             # Commiting session is smart enough to pick up ORM model updates
-            self.session.commit()
-            self.session.refresh(db_model)
+            self.database_session.commit()
+            self.database_session.refresh(db_model)
             return self.public_schema.model_validate(db_model)
         except IntegrityError:
             raise DataModelIntegrityConflictException(
@@ -141,7 +144,7 @@ class DatabaseRepository(AbstractServiceRepository):
     def delete(self, uuid: UUID) -> None:
         try:
             db_model = self._get_database_object_by_uuid(_uuid=uuid)
-            self.session.delete(db_model)
-            self.session.commit()
+            self.database_session.delete(db_model)
+            self.database_session.commit()
         except Exception as e:
             raise

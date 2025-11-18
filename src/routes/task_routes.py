@@ -3,64 +3,91 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status, HTTPException
 
-from ..repositories.TaskRepository import TaskRepository
+from ..core.database import get_database_session
+from ..models.db_models import Task
+from ..schemas.TaskSchemas import *
+from ..repositories.AbstractServiceRepository import AbstractServiceRepository
 from ..repositories.DatabaseRepository import (
     DataModelIntegrityConflictException,
     DataModelNotFound,
+    DatabaseRepository,
 )
 
-from ..repositories.TaskRepository import *
-from ..schemas.TaskSchemas import *
+from ..schemas.ProjectSchemas import ProjectGet, ProjectCreate, ProjectUpdate
+from ..services.project_service import ProjectService
+from ..services.task_service import TaskService
 
-task_router = APIRouter()
+task_router = APIRouter(prefix="/tasks", tags=["Task"])
 
 
-@task_router.get("/tasks", status_code=status.HTTP_200_OK, response_model=list[TaskGet])
-def get_tasks(task_repository=Depends(TaskRepository)):
-    task_get_schemas = task_repository.get_all()
-    return task_get_schemas
+# Dependency functions - used for dependency injection.
+def dependency_task_repository(
+    session: Annotated[AbstractServiceRepository, Depends(get_database_session)],
+) -> AbstractServiceRepository:
+    return DatabaseRepository(
+        database_model_class=Task,
+        update_schema_class=TaskUpdate,
+        create_schema_class=TaskCreate,
+        public_schema_class=TaskGet,
+        database_session=session,
+    )
+
+
+def dependency_task_service(
+    repository: Annotated[
+        AbstractServiceRepository, Depends(dependency_task_repository)
+    ],
+) -> TaskService:
+    # Why create Database repository here instead of just having Task Service create the repository?
+    # This lets us perform dependency injection later so we can override the database repository
+    # with a different repository source (e.g. mock for testing) or change to different
+    # Repository (e.g. switch data source to API , file etc) without impacting the
+    # code using this dependency - everything depends on an abstract Repository interface
+    # so long as our replacement walks,talks and quacks like a duck/Repository we can use it here
+    return TaskService(repository=repository)
+
+
+# Some important notes
+# Error handling is all done by errors.py in root , this allows us to avoid having
+# to cater for each error and map to HTTP response code in each function
+@task_router.get(path="/", status_code=status.HTTP_200_OK, response_model=list[TaskGet])
+def get_tasks(
+    task_service: Annotated[TaskService, Depends(dependency_task_service)],
+):
+    return task_service.get_all()
 
 
 @task_router.get(
-    "/tasks/{task_uuid}",
+    "/{task_uuid}",
     status_code=status.HTTP_200_OK,
     response_model=TaskGet,
 )
-def get_task(task_uuid: UUID, task_repository=Depends(TaskRepository)):
-    try:
-        return task_repository.get_one_by_uuid(uuid=task_uuid)
-    except DataModelNotFound:
-        raise HTTPException(status_code=404, detail="task not found")
+def get_task(
+    task_uuid: UUID,
+    task_service: Annotated[TaskService, Depends(dependency_task_service)],
+):
+    return task_service.get_one_by_uuid(uuid=task_uuid)
 
 
-@task_router.post("/tasks", response_model=TaskGet)
-def create_task(create_schema: TaskCreate, task_repository=Depends(TaskRepository)):
-    # Check foreign key for task is valid if provided. Raises 404 error if not found
-    try:
-        return task_repository.create(create_schema=create_schema)
-    except DataModelIntegrityConflictException:
-        raise HTTPException(
-            status_code=409, detail="Invalid state - check parent_id exists"
-        )
+@task_router.post("/", response_model=TaskGet)
+def create_task(
+    create_schema: TaskCreate,
+    task_service: Annotated[TaskService, Depends(dependency_task_service)],
+):
+    return task_service.create(create_schema=create_schema)
 
 
-@task_router.put("/tasks", response_model=TaskGet)
-def update_task(update_schema: TaskUpdate, task_repository=Depends(TaskRepository)):
-    try:
-        return task_repository.update(
-            update_schema=update_schema, uuid=update_schema.uuid
-        )
-    except DataModelIntegrityConflictException:
-        raise HTTPException(
-            status_code=409, detail="Invalid state - check parent_id exists"
-        )
-    except DataModelNotFound:
-        raise HTTPException(status_code=404, detail="task not found")
+@task_router.put("/", response_model=TaskGet)
+def update_task(
+    update_schema: TaskUpdate,
+    task_service: Annotated[TaskService, Depends(dependency_task_service)],
+):
+    return task_service.update(update_schema=update_schema, uuid=update_schema.uuid)
 
 
-@task_router.delete("/tasks/{task_uuid}")
-async def delete_task(task_uuid: UUID, task_repository=Depends(TaskRepository)):
-    try:
-        return task_repository.delete(uuid=task_uuid)
-    except DataModelNotFound:
-        raise HTTPException(status_code=404, detail="task not found")
+@task_router.delete("/{task_uuid}")
+async def delete_task(
+    task_uuid: UUID,
+    task_service: Annotated[TaskService, Depends(dependency_task_service)],
+):
+    return task_service.delete(uuid=task_uuid)

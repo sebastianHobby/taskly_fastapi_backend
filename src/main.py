@@ -1,11 +1,16 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import fastapi.middleware.cors
+from starlette.requests import Request
+
+from src.repositories.DatabaseRepository import DataModelNotFound
 from src.schemas import *
 from src.core.database import create_database
-from src.routes.task_routes import task_router
+
+# from src.routes.task_routes import task_router
 from src.routes.project_routes import project_router
-from src.routes.area_routes import area_router
+
+# from src.routes.area_routes import area_router
 
 
 # This method is called when fast API app object is instantiated and
@@ -34,6 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(task_router, tags=["tasks"])
-app.include_router(area_router, tags=["areas"])
+
+# app.include_router(task_router, tags=["tasks"])
+# app.include_router(area_router, tags=["areas"])
 app.include_router(project_router, tags=["projects"])
