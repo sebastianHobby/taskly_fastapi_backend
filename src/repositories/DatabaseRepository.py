@@ -1,21 +1,12 @@
-from typing import List, Annotated
-from uuid import UUID
-
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import Session
-
-from src.core.database import get_database_session
-from src.models.db_models import Project, DatabaseBaseModel
-from src.repositories.AbstractServiceRepository import AbstractServiceRepository
-from src.schemas.ApiBaseSchema import ApiBaseSchema
 from typing import List
 from uuid import UUID
 
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 
+from src.models.db_models import DatabaseBaseModel
+from src.repositories.AbstractRepository import AbstractServiceRepository
 from src.schemas.ApiBaseSchema import ApiBaseSchema
 
 
@@ -90,7 +81,6 @@ class DatabaseRepository(AbstractServiceRepository):
         return response_schemas
 
     def create(self, create_schema: ApiBaseSchema) -> ApiBaseSchema:
-        # Todo implement parent / foreign key errors with helpful text. May require service layer
         """Accepts a Pydantic model, creates a new record in the database, catches
         any integrity errors, and returns the record.
 

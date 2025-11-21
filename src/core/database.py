@@ -1,42 +1,45 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Engine
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
 import src.models
 from src.models.db_models import DatabaseBaseModel
 
-engine = create_engine(
-    "sqlite:///tasklyData.db", connect_args={"check_same_thread": False}
-)
+from contextlib import contextmanager, AbstractContextManager, asynccontextmanager
+from typing import Callable
+import logging
+
+from sqlalchemy import create_engine, orm
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session
 
 
-def create_database() -> None:
-    """Sets up database engine to connect to database. Then creates tables based on SQLAlchemy Models imported from
-    src.models. Note all models need to be imported prior to this method being run"""
-    DatabaseBaseModel.metadata.create_all(bind=engine)
+logger = logging.getLogger("")
 
 
-@event.listens_for(Engine, "connect")
-def enable_foreign_key_constraint_sqlite(dbapi_connection, connection_record):
-    # the sqlite3 driver will not set PRAGMA foreign_keys
-    # if autocommit=False; set to True temporarily
-    ac = dbapi_connection.autocommit
-    dbapi_connection.autocommit = True
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
-    print("SQlite foreign keys constraints enabled")
-    # restore previous autocommit setting
-    dbapi_connection.autocommit = ac
+class Database:
 
+    def __init__(self, db_url: str, connection_args: dict) -> None:
+        self._engine = create_engine(db_url, connect_args=connection_args)
+        self._session_factory = orm.scoped_session(
+            orm.sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=self._engine,
+            ),
+        )
 
-SessionFactory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-# SessionFactory = async_sessionmaker(bind=engine)
+    def create_database(self) -> None:
+        DatabaseBaseModel.metadata.create_all(self._engine)
 
-
-def get_database_session():
-    db_session = SessionFactory()
-    try:
-        yield db_session
-    finally:
-        db_session.close()
+    @asynccontextmanager
+    async def session(self) -> Callable[..., AbstractContextManager[Session]]:
+        session: Session = self._session_factory()
+        try:
+            yield session
+        except Exception:
+            logger.exception("Session rollback because of exception")
+            session.rollback()
+            raise
+        finally:
+            session.close()

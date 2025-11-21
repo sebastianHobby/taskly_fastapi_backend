@@ -8,7 +8,7 @@ See https://github.com/cosmicpython/book/blob/master/chapter_04_service_layer.as
 
 from typing import List
 from sqlalchemy import UUID
-from src.repositories.AbstractServiceRepository import AbstractServiceRepository
+from src.repositories.AbstractRepository import AbstractServiceRepository
 from src.schemas.AreaSchemas import AreaCreate, AreaUpdate, AreaGet
 
 
@@ -21,19 +21,27 @@ class AreaService:
         self.repository = repository
 
     def get_one_by_uuid(self, uuid: UUID) -> AreaGet:
+        """Raises: DataModelNotFound: if no data found"""
         return self.repository.get_one_by_uuid(uuid)
 
     def get_all(self) -> List[AreaGet]:
         return self.repository.get_all()
 
     def create(self, create_schema: AreaCreate) -> AreaGet:
+        """Raises:
+        DataModelIntegrityConflictException: if creation conflicts with existing data
+        DataModelException: if an unknown error occurs"""
         return self.repository.create(create_schema)
 
     def update(self, update_schema: AreaUpdate) -> AreaGet:
+        """Raises:
+        DataModelIntegrityConflictException: if creation conflicts with existing data
+        DataModelException: if an unknown error occurs"""
         return self.repository.update(update_schema)
 
     def delete(
         self,
         uuid: UUID,
     ) -> None:
+        """Raises: DataModelNotFound: if no data found"""
         return self.repository.delete(uuid)

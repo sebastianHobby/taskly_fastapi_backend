@@ -2,21 +2,12 @@ from typing import Annotated
 from uuid import UUID
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status
 
 from ..core.dependency_containers import Container
-from ..core.database import get_database_session
-from ..models.db_models import Project
-from ..repositories.AbstractServiceRepository import AbstractServiceRepository
-from ..repositories.DatabaseRepository import (
-    DataModelIntegrityConflictException,
-    DataModelNotFound,
-    DatabaseRepository,
-)
-
+from ..repositories.AbstractRepository import AbstractServiceRepository
 from ..schemas.ProjectSchemas import ProjectGet, ProjectCreate, ProjectUpdate
 from ..services.project_service import ProjectService
-
 
 # Todo setup tests for this pattern (API router with prefix) then copy for areas + projects
 project_router = APIRouter(prefix="/projects", tags=["Project"])
@@ -31,6 +22,7 @@ def get_projects(
         ProjectService, Depends(Provide[Container.project_repository])
     ],
 ):
+
     return project_service.get_all()
 
 

@@ -1,0 +1,17 @@
+
+{
+  "database": {
+  "url":   "sqlite:///tasklyData.db",
+  "connection_args": {
+    "check_same_thread": false}
+  },
+  "cors": {
+  "allow_origins": ["http://localhost:8081", "https://localhost:8081"],
+  "allow_credentials": true,
+    "allow_headers": "*",
+    "allow_methods": "*"
+  }
+}
+
+
+
