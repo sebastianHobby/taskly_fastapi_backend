@@ -2,7 +2,9 @@
 
 from contextlib import asynccontextmanager
 
+import fastapi
 from dependency_injector import containers, providers
+from dependency_injector.providers import contextmanager
 from dependency_injector.wiring import required
 from fastapi import FastAPI
 from sqlalchemy.orm.session import sessionmaker
@@ -18,25 +20,6 @@ from ..schemas.AreaSchemas import *
 from ..schemas.TaskSchemas import *
 from ..services.area_service import AreaService
 from ..services.task_service import TaskService
-
-#
-# @asynccontextmanager
-# async def fastapi_app_lifespan_manager():
-#     print("hello fast api start")
-#     yield
-#     print("exit fast api context")
-
-
-class AppContextManager:
-    def __init__(self, host, port, user, password):
-        self.app = FastAPI()
-
-    def __enter__(self):
-        print(f"Initialising fastAPI inside AppContextManager")
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        print("Closing connection")
 
 
 class Container(containers.DeclarativeContainer):
@@ -63,7 +46,7 @@ class Container(containers.DeclarativeContainer):
         update_schema_class=ProjectUpdate,
         create_schema_class=ProjectCreate,
         public_schema_class=ProjectGet,
-        database_session=database.provided.session,
+        database_session_factory=database.provided.session,
     )
     area_repository = providers.Factory(
         DatabaseRepository,
@@ -71,7 +54,7 @@ class Container(containers.DeclarativeContainer):
         update_schema_class=AreaUpdate,
         create_schema_class=AreaCreate,
         public_schema_class=AreaGet,
-        database_session=database.provided.session,
+        database_session_factory=database.provided.session,
     )
     task_repository = providers.Factory(
         DatabaseRepository,
@@ -79,7 +62,7 @@ class Container(containers.DeclarativeContainer):
         update_schema_class=TaskUpdate,
         create_schema_class=TaskCreate,
         public_schema_class=TaskGet,
-        database_session=database.provided.session,
+        database_session_factory=database.provided.session,
     )
 
     project_service = providers.Factory(ProjectService, repository=project_repository)

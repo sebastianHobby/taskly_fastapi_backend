@@ -2,14 +2,13 @@ from typing import Annotated
 from uuid import UUID
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, Depends, status
 
 from ..core.dependency_containers import Container
 from ..repositories.AbstractRepository import AbstractServiceRepository
 from ..schemas.ProjectSchemas import ProjectGet, ProjectCreate, ProjectUpdate
 from ..services.project_service import ProjectService
+from fastapi import APIRouter, Depends, Response, status
 
-# Todo setup tests for this pattern (API router with prefix) then copy for areas + projects
 project_router = APIRouter(prefix="/projects", tags=["Project"])
 
 
@@ -17,13 +16,14 @@ project_router = APIRouter(prefix="/projects", tags=["Project"])
     path="/", status_code=status.HTTP_200_OK, response_model=list[ProjectGet]
 )
 @inject
-def get_projects(
+async def get_projects(
     project_service: Annotated[
         ProjectService, Depends(Provide[Container.project_repository])
     ],
 ):
 
-    return project_service.get_all()
+    list = await project_service.get_all()
+    return list
 
 
 @project_router.get(
@@ -32,35 +32,38 @@ def get_projects(
     response_model=ProjectGet,
 )
 @inject
-def get_project(
+async def get_project(
     project_uuid: UUID,
     project_service: Annotated[
         ProjectService, Depends(Provide[Container.project_repository])
     ],
 ):
-    return project_service.get_one_by_uuid(uuid=project_uuid)
+    project = await project_service.get_one_by_uuid(uuid=project_uuid)
+    return project
 
 
 @project_router.post("/", response_model=ProjectGet)
 @inject
-def create_project(
+async def create_project(
     create_schema: ProjectCreate,
     project_service: Annotated[
         ProjectService, Depends(Provide[Container.project_repository])
     ],
 ):
-    return project_service.create(create_schema=create_schema)
+    project = await project_service.create(create_schema=create_schema)
+    return project
 
 
 @project_router.put("/", response_model=ProjectGet)
 @inject
-def update_project(
+async def update_project(
     update_schema: ProjectUpdate,
     project_service: Annotated[
         ProjectService, Depends(Provide[Container.project_repository])
     ],
 ):
-    return project_service.update(update_schema=update_schema)
+    project = await project_service.update(update_schema=update_schema)
+    return project
 
 
 @project_router.delete("/{project_uuid}")
@@ -71,4 +74,5 @@ async def delete_project(
         ProjectService, Depends(Provide[Container.project_repository])
     ],
 ):
-    return project_service.delete(uuid=project_uuid)
+    project_service.delete(uuid=project_uuid)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

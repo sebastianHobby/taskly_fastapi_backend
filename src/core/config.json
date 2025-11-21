@@ -1,5 +1,6 @@
 
 {
+  "debug": true,
   "database": {
   "url":   "sqlite:///tasklyData.db",
   "connection_args": {

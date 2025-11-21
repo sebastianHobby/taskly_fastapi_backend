@@ -43,3 +43,6 @@ class Database:
             raise
         finally:
             session.close()
+
+    async def shutdown(self):
+        self._engine.dispose()

@@ -13,11 +13,23 @@ from src.routes.project_routes import project_router
 from src.routes.task_routes import task_router
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup events: Initialize resources here
+    print("Application startup: Initializing database connection...")
+    database = Container.database()
+    database.create_database()
+    yield
+    # Shutdown events: Clean up resources here
+    print("Application shutdown: Closing database connection...")
+    database.shutdown()
+
+
 def create_app() -> FastAPI:
     container = Container()
     database = container.database()
     database.create_database()
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan, debug=container.config.debug)
     app.container = container
     app.include_router(project_router, tags=["projects"])
     app.include_router(task_router, tags=["tasks"])

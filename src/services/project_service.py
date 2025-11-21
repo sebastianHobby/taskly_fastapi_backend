@@ -23,8 +23,9 @@ class ProjectService:
         """Raises: DataModelNotFound: if no data found"""
         return self.repository.get_one_by_uuid(uuid)
 
-    def get_all(self) -> List[ProjectGet]:
-        return self.repository.get_all()
+    async def get_all(self) -> List[ProjectGet]:
+        list = await self.repository.get_all()
+        return list
 
     def create(self, create_schema: ProjectCreate) -> ProjectGet:
         """Raises:
