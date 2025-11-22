@@ -6,42 +6,52 @@ Note this is primarily to allow dependency injection and easy mocking/limiting c
 See https://github.com/cosmicpython/book/blob/master/chapter_04_service_layer.asciidoc
 """
 
-from typing import List
+from typing import List, Any, Coroutine
+
+from click import Tuple
+from fastapi import HTTPException
 from sqlalchemy import UUID
+
+from src.models.db_models import TaskListTypes
 from src.repositories.AbstractRepository import AbstractServiceRepository
-from src.schemas.TaskSchemas import TaskCreate, TaskUpdate, TaskGet
+from src.repositories.RepositoryExceptions import DataModelNotFound
+from src.schemas.ListGroupSchemas import (
+    ListGroupResponse,
+    ListGroupCreate,
+    ListGroupUpdate,
+)
+from src.schemas.TaskListSchemas import TaskListResponse, TaskListCreate, TaskListUpdate
+from src.schemas.TaskSchemas import TaskResponse, TaskCreate, TaskUpdate
+from src.services.service_schemas import TaskListAndListGroups
 
 
-# Todo document what exceptions can be raised here - use doc strings so shows in IDE
-# Todo add some validation for foreign key checks here
-# Todo add some basic validation rules like Tasks can only have parents of type (Task,Task) not Task
 class TaskService:
-    def __init__(self, repository: AbstractServiceRepository):
-        # Note dependency injection of abstract service repository
-        self.repository = repository
-
-    def get_one_by_uuid(self, uuid: UUID) -> TaskGet:
-        """Raises: DataModelNotFound: if no data found"""
-        return self.repository.get_one_by_uuid(uuid)
-
-    def get_all(self) -> List[TaskGet]:
-        return self.repository.get_all()
-
-    def create(self, create_schema: TaskCreate) -> TaskGet:
-        """Raises:
-        DataModelIntegrityConflictException: if creation conflicts with existing data
-        DataModelException: if an unknown error occurs"""
-        return self.repository.create(create_schema)
-
-    def update(self, update_schema: TaskUpdate) -> TaskGet:
-        """Raises:
-        DataModelIntegrityConflictException: if creation conflicts with existing data
-        DataModelException: if an unknown error occurs"""
-        return self.repository.update(update_schema)
-
-    def delete(
+    def __init__(
         self,
-        uuid: UUID,
-    ) -> None:
+        task_repo: AbstractServiceRepository,
+    ):
+        self.task_repo = task_repo
+
+    async def get_task(self, task_id: UUID) -> TaskResponse:
+        """Returns task list by ID or None if data does not exist"""
+        result = await self.task_repo.get(id=task_id)
+        if result is None:
+            raise DataModelNotFound(f"Task with Id {task_id} not found")
+        return result
+
+    async def get_all_tasks(self) -> List[TaskResponse]:
+        task_list_response = await self.task_repo.get_all()
+        return task_list_response
+
+    async def create_task(self, create_schema: TaskCreate) -> TaskResponse:
+        res = await self.task_repo.create(create_schema)
+        return res
+
+    async def update_task(self, update_schema: TaskUpdate) -> TaskListResponse:
+        res = await self.task_repo.update(update_schema=update_schema)
+        return res
+
+    async def delete_task(self, task_id: UUID) -> bool:
         """Raises: DataModelNotFound: if no data found"""
-        return self.repository.delete(uuid)
+        res = await self.task_repo.delete(id=task_id)
+        return res

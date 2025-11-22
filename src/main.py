@@ -7,10 +7,10 @@ from dependency_injector.wiring import inject, Provide
 from fastapi import FastAPI
 
 from src.core.dependency_containers import Container
-from src.models.db_models import DatabaseBaseModel
-from src.routes.area_routes import area_router
-from src.routes.project_routes import project_router
+from src.routes.list_group_routes import list_group_router
+from src.routes.task_list_routes import task_lists_router
 from src.routes.task_routes import task_router
+from src.services import task_service
 
 
 @asynccontextmanager
@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown events: Clean up resources here
     print("Application shutdown: Closing database connection...")
-    database.shutdown()
+    await database.shutdown()
 
 
 def create_app() -> FastAPI:
@@ -31,9 +31,11 @@ def create_app() -> FastAPI:
     database.create_database()
     app = FastAPI(lifespan=lifespan, debug=container.config.debug)
     app.container = container
-    app.include_router(project_router, tags=["projects"])
-    app.include_router(task_router, tags=["tasks"])
-    app.include_router(area_router, tags=["areas"])
+    app.include_router(task_lists_router)
+    app.include_router(list_group_router)
+    app.include_router(task_router)
+    # app.include_router(task_router, tags=["tasks"])
+    # app.include_router(area_router, tags=["areas"])
 
     app.add_middleware(
         fastapi.middleware.cors.CORSMiddleware,

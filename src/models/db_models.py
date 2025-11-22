@@ -1,14 +1,34 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 from uuid import UUID, uuid4
 
 from sqlalchemy import String, ForeignKey, Column, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 
-from src.schemas.MixinSchemas import HasStartDateAndDeadline, TaskContainerTypes
+
+# Mixin and enum classes
+class ListStatusValues(Enum):
+    not_started = "Not started"
+    in_progress = "In progress"
+    completed = "Completed"
+
+
+class TaskListTypes(Enum):
+    project = "Project"
+    list = "List"
+
+
+class TaskStatusValues(Enum):
+    not_started = "Not started"
+    completed = "Completed"
 
 
 class DatabaseBaseModel(DeclarativeBase):
+    pass
+
+
+class hasCommonDatabaseFields:
     """Defines common fields for all database models"""
 
     def to_dict(self):
@@ -16,50 +36,42 @@ class DatabaseBaseModel(DeclarativeBase):
 
     created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(default=func.now())
-    uuid: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
 
-class TaskContainer(DatabaseBaseModel):
-    __tablename__ = "task_containers"
-
+# The actual database models
+class ListGroup(hasCommonDatabaseFields, DatabaseBaseModel):
+    __tablename__ = "task_list_groups"
     name: Mapped[str]
-    description: Mapped[str] = mapped_column(String, nullable=True)
-    last_reviewed_date: Mapped[datetime] = mapped_column(
-        nullable=True
-    )  # Last user review of this task container
-    # Self reference i.e. Adjacent list design pattern for hierarchy structure
-    parent_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("task_containers.uuid"), nullable=True
+
+
+class TaskList(hasCommonDatabaseFields, DatabaseBaseModel):
+    """Represents a list of tasks which can be a project or misc list"""
+
+    __tablename__ = "task_lists"
+    type: Mapped[
+        TaskListTypes
+    ]  # See enum for description of the type and associated business rules
+    name: Mapped[str]
+    notes: Mapped[str] = mapped_column(String, nullable=True)
+    deadline_date: Mapped[datetime] = mapped_column(nullable=True)
+    start_date: Mapped[datetime] = mapped_column(nullable=True)
+    parent_group_id: Mapped[UUID] = mapped_column(
+        ForeignKey("task_list_groups.id"), nullable=True
     )
-    children = relationship("TaskContainer")
-    # Discriminator attribute
-    type: Mapped[TaskContainerTypes]
-    __mapper_args__ = {
-        "polymorphic_identity": "task_containers",
-        "polymorphic_on": "type",
-    }
+    status: Mapped[ListStatusValues] = mapped_column(nullable=True)
 
 
-class Project(TaskContainer, HasStartDateAndDeadline):
-    # Tell SQL alchemy to refer to this table when Area.type = project
-    __mapper_args__ = {
-        "polymorphic_identity": TaskContainerTypes.project,
-    }
-    # Project specific fields
-
-    is_complete: Mapped[bool] = mapped_column(default=False)
-
-
-class Task(DatabaseBaseModel, HasStartDateAndDeadline):
+class Task(hasCommonDatabaseFields, DatabaseBaseModel):
     __tablename__ = "tasks"
     name: Mapped[str]
-    description: Mapped[str] = mapped_column(String, nullable=True)
-    is_complete = Column(Boolean, nullable=False, default=False)
-    parent_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("task_containers.uuid"), nullable=True
+    notes: Mapped[str] = mapped_column(String, nullable=True)
+    start_date: Mapped[datetime] = mapped_column(nullable=True)
+    deadline_date: Mapped[datetime] = mapped_column(nullable=True)
+    status: Mapped[TaskStatusValues] = mapped_column(
+        nullable=True, default=TaskStatusValues.not_started
     )
 
-
-class Area(TaskContainer):
-    # Tell SQL alchemy to refer to this table when task_container.type = project
-    __mapper_args__ = {"polymorphic_identity": TaskContainerTypes.area}
+    parent_list_id: Mapped[UUID] = mapped_column(
+        ForeignKey("task_lists.id"), nullable=True
+    )

@@ -10,41 +10,41 @@ from fastapi import APIRouter, Depends, status
 from ..services.service_schemas import TaskListAndListGroups
 from ..services.task_list_service import TaskListService
 
-task_router = APIRouter(prefix="/lists", tags=["Tasks"])
+task_lists_router = APIRouter(prefix="/lists", tags=["Lists and Groups"])
 
 
-@task_router.get(
+@task_lists_router.get(
     path="/", status_code=status.HTTP_200_OK, response_model=TaskListAndListGroups
 )
 @inject
-async def get_all_tasks(
+async def get_all_task_lists_and_groups(
     task_list_service: Annotated[
         TaskListService, Depends(Provide[Container.task_list_service])
     ],
 ):
-    task_and_groups = await task_list_service.get_all()
-    return task_and_groups
+    task_lists_and_groups = await task_list_service.get_all()
+    return task_lists_and_groups
 
 
-@task_router.get(
-    "/{task_id}",
+@task_lists_router.get(
+    "/{task_list_id}",
     status_code=status.HTTP_200_OK,
     response_model=TaskListResponse,
 )
 @inject
-async def get_task(
-    task_id: UUID,
+async def get_task_list(
+    task_list_id: UUID,
     task_list_service: Annotated[
         TaskListService, Depends(Provide[Container.task_list_service])
     ],
 ) -> TaskListResponse:
-    task_list = await task_list_service.get_task_list_by_id(list_id=task_id)
+    task_list = await task_list_service.get_task_list_by_id(list_id=task_list_id)
     return task_list
 
 
-@task_router.post("/", response_model=TaskListResponse)
+@task_lists_router.post("/", response_model=TaskListResponse)
 @inject
-async def create_task(
+async def create_task_list(
     create_schema: TaskListCreate,
     task_list_service: Annotated[
         TaskListService, Depends(Provide[Container.task_list_service])
@@ -54,9 +54,9 @@ async def create_task(
     return task_list
 
 
-@task_router.put("/", response_model=TaskListResponse)
+@task_lists_router.put("/", response_model=TaskListResponse)
 @inject
-async def update_task(
+async def update_task_list(
     update_schema: TaskListUpdate,
     task_list_service: Annotated[
         TaskListService, Depends(Provide[Container.task_list_service])
@@ -66,13 +66,13 @@ async def update_task(
     return task_list
 
 
-@task_router.delete("/{task_id}")
+@task_lists_router.delete("/{task_list_id}")
 @inject
-async def delete_task(
-    task_id: UUID,
+async def delete_task_list(
+    task_list_id: UUID,
     task_list_service: Annotated[
         TaskListService, Depends(Provide[Container.task_list_service])
     ],
 ):
-    task_list = await task_list_service.delete_task_list(task_list_id=task_id)
+    task_list = await task_list_service.delete_task_list(task_list_id=task_list_id)
     return None

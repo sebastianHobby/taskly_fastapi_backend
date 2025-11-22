@@ -7,11 +7,9 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from .models.db_models import Project
-from .repositories import *
-from .models import *
 from .main import app
-from .schemas.MixinSchemas import TaskContainerTypes
+from .repositories.RepositoryExceptions import DataModelNotFound
+from src.models.MixinSchemas import TaskContainerTypes
 from .schemas.ProjectSchemas import ProjectGet
 from .services.project_service import ProjectService
 
@@ -60,42 +58,76 @@ def test_get_list(client):
     ]
     project_repo_mock.get_all.return_value = mockReturnData
 
-    app.container.project_repository.override(project_repo_mock)
+    app.container.task_list_repository.override(project_repo_mock)
     response = client.get("/projects")
-
+    assert response.status_code == 200
     response_schemas = []
     for item in response.json():
         project_schema = ProjectGet.model_validate(item)
         response_schemas.append(project_schema)
-    assert response.status_code == 200
     assert response_schemas == mockReturnData
 
 
-# TOdo finish test cases for projects then clone to areas/tasks
-# Todo investigate integration vs unit tests
-# Todo add something to handle foreign keys
+def test_get_empty_list(client):
+    project_repo_mock = AsyncMock(spec=ProjectService)
+    project_repo_mock.get_all.return_value = []
+    app.container.task_list_repository.override(project_repo_mock)
+    response = client.get("/projects")
+    app.container.task_list_repository.reset_override()
 
-# def test_get_by_id(client):
-#     repository_mock = mock.Mock(spec=UserRepository)
-#     repository_mock.get_by_id.return_value = User(
-#         id=1,
-#         email="xyz@email.com",
-#         hashed_password="pwd",
-#         is_active=True,
-#     )
-#
-#     with app.container.user_repository.override(repository_mock):
-#         response = client.get("/users/1")
-#
-#     assert response.status_code == 200
-#     data = response.json()
-#     assert data == {
-#         "id": 1,
-#         "email": "xyz@email.com",
-#         "hashed_password": "pwd",
-#         "is_active": True,
-#     }
-#     repository_mock.get_by_id.assert_called_once_with(1)
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_get_by_uuid(client):
+    project_repo_mock = AsyncMock(spec=ProjectService)
+    test_uuid = uuid.uuid4()
+    mock_project = ProjectGet(
+        name="my project name 1",
+        uuid=test_uuid,
+        is_complete=False,
+        start_date=datetime.datetime(2025, 10, 1),
+        deadline_date=None,
+        last_reviewed_date=datetime.datetime.now(),
+        created_at=datetime.datetime.now(),
+        updated_at=datetime.datetime.now(),
+        type=TaskContainerTypes.project,
+    )
+    project_repo_mock.get_one_by_uuid.return_value = mock_project
+
+    app.container.task_list_repository.override(project_repo_mock)
+    response = client.get(f"/projects/{test_uuid}")
+    app.container.task_list_repository.reset_override()
+
+    assert response.status_code == 200
+    data = response.json()
+    response_schema = ProjectGet.model_validate(data)
+    assert mock_project == response_schema
+    project_repo_mock.get_one_by_uuid.assert_called_once_with(uuid=test_uuid)
+
+
+def test_get_by_uuid_404(client):
+    # project_repo_mock = AsyncMock(spec=DatabaseRepository)
+    non_existant_uuid = uuid.uuid4()
+    project_repo_mock = AsyncMock(spec=ProjectService)
+
+    try:
+        app.container.task_list_repository.override(project_repo_mock)
+        response = client.get(f"/projects/{non_existant_uuid}")
+    except DataModelNotFound:
+        assert_raised = True
+    finally:
+        app.container.task_list_repository.reset_override()
+
+    assert assert_raised == True
+
+
+# assert response.status_code == 404
+
+
+# project_repo_mock.get_one_by_uuid.assert_called_once_with(id=non_existant_uuid)
+
+
 #
 #
 # def test_get_by_id_404(client):

@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from starlette.requests import Request
 
 from src.main import app
-from src.repositories.DatabaseRepository import DataModelNotFound, DataModelIntegrityConflictException
+from src.repositories.RepositoryExceptions import DataModelIntegrityConflictException, DataModelNotFound
 
 # Todo could just do something simple like below - in routes UtIL
 # Class ErrorHandler ()

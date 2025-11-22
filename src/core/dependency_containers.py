@@ -9,16 +9,23 @@ from dependency_injector.wiring import required
 from fastapi import FastAPI
 from sqlalchemy.orm.session import sessionmaker
 
-from src.services.project_service import ProjectService
 from .database import Database
 from ..models.db_models import *
 from ..repositories.DatabaseRepository import (
     DatabaseRepository,
 )
-from ..schemas.ProjectSchemas import ProjectGet, ProjectCreate, ProjectUpdate
-from ..schemas.AreaSchemas import *
-from ..schemas.TaskSchemas import *
-from ..services.area_service import AreaService
+from ..schemas.ListGroupSchemas import (
+    ListGroupCreate,
+    ListGroupResponse,
+    ListGroupUpdate,
+)
+from ..schemas.TaskListSchemas import TaskListResponse, TaskListCreate, TaskListUpdate
+from ..schemas.TaskSchemas import (
+    TaskResponse,
+    TaskUpdate,
+    TaskCreate,
+)
+from ..services.task_list_service import TaskListService
 from ..services.task_service import TaskService
 
 
@@ -26,7 +33,7 @@ class Container(containers.DeclarativeContainer):
 
     wiring_config = containers.WiringConfiguration(
         modules=[
-            "src.routes.project_routes",
+            "src.routes.task_list_routes",
             "src.main",
         ]
     )
@@ -40,31 +47,36 @@ class Container(containers.DeclarativeContainer):
         connection_args=config.database.connection_args,
     )
 
-    project_repository = providers.Factory(
-        DatabaseRepository,
-        database_model_class=Project,
-        update_schema_class=ProjectUpdate,
-        create_schema_class=ProjectCreate,
-        public_schema_class=ProjectGet,
+    task_list_repository = providers.Factory(
+        DatabaseRepository[TaskList, TaskListCreate, TaskListUpdate, TaskResponse],
+        database_model_class=TaskList,
+        update_schema_class=TaskListUpdate,
+        create_schema_class=TaskListCreate,
+        response_schema_class=TaskListResponse,
         database_session_factory=database.provided.session,
     )
-    area_repository = providers.Factory(
-        DatabaseRepository,
-        database_model_class=Area,
-        update_schema_class=AreaUpdate,
-        create_schema_class=AreaCreate,
-        public_schema_class=AreaGet,
+    list_group_repository = providers.Factory(
+        DatabaseRepository[
+            ListGroup, ListGroupCreate, ListGroupUpdate, ListGroupResponse
+        ],
+        database_model_class=ListGroup,
+        update_schema_class=TaskListUpdate,
+        create_schema_class=ListGroupCreate,
+        response_schema_class=ListGroupResponse,
         database_session_factory=database.provided.session,
     )
     task_repository = providers.Factory(
-        DatabaseRepository,
+        DatabaseRepository[Task, TaskCreate, TaskUpdate, TaskResponse],
         database_model_class=Task,
         update_schema_class=TaskUpdate,
         create_schema_class=TaskCreate,
-        public_schema_class=TaskGet,
+        response_schema_class=TaskResponse,
         database_session_factory=database.provided.session,
     )
 
-    project_service = providers.Factory(ProjectService, repository=project_repository)
-    area_service = providers.Factory(AreaService, repository=area_repository)
-    task_service = providers.Factory(TaskService, repository=task_repository)
+    task_list_service = providers.Factory(
+        TaskListService,
+        list_repo=task_list_repository,
+        list_group_repo=list_group_repository,
+    )
+    task_service = providers.Factory(TaskService, task_repo=task_repository)

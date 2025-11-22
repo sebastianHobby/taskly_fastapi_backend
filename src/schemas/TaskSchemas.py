@@ -1,33 +1,49 @@
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
-from pydantic import ConfigDict, Field
+from pydantic import BaseModel as BaseSchemaModel
 
-from src.schemas.ApiBaseSchema import ApiBaseSchema
-
-
-class TaskCreate(ApiBaseSchema):
-    model_config = ConfigDict(from_attributes=True)
-    name: str
-    description: str | None = None
-    is_complete: bool
-    parent_id: UUID | None = None
+from src.models.db_models import TaskStatusValues
 
 
-class TaskUpdate(ApiBaseSchema):
-    model_config = ConfigDict(from_attributes=True)
-    uuid: UUID
-    name: str = Field(min_length=3, max_length=50)
-    is_complete: bool = False
-    description: str | None = None
+class TaskResponse(BaseSchemaModel):
+    """Schema returned to API consumers typically via a GET
+    request or returned after update a resource"""
 
-
-class TaskGet(ApiBaseSchema):
-    model_config = ConfigDict(from_attributes=True)
-    uuid: UUID
-    parent_id: UUID | None = None
-    name: str
-    description: str | None = None
-    is_complete: bool
+    id: UUID
+    parent_list_id: UUID
     created_at: datetime
-    updated_at: datetime | None = None
+    updated_at: datetime
+    name: str
+    status: TaskStatusValues
+
+    # Optional fields
+    notes: Optional[str] = None
+    start_date: Optional[datetime] = None
+    deadline_date: Optional[datetime] = None
+
+
+class TaskCreate(BaseSchemaModel):
+    """Schema used by API consumers to create a Task"""
+
+    parent_list_id: UUID
+    name: str
+    status: Optional[TaskStatusValues] = TaskStatusValues.not_started
+    # Optional fields
+    notes: Optional[str] = None
+    start_date: Optional[datetime] = None
+    deadline_date: Optional[datetime] = None
+
+
+class TaskUpdate(BaseSchemaModel):
+    """Schema used by API consumers to update a Task"""
+
+    id: UUID
+    parent_list_id: UUID
+    name: str
+    status: Optional[TaskStatusValues] = TaskStatusValues.not_started
+    # Optional fields
+    notes: Optional[str] = None
+    start_date: Optional[datetime] = None
+    deadline_date: Optional[datetime] = None
