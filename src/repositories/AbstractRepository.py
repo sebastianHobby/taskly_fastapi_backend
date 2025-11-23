@@ -16,7 +16,7 @@ class AbstractServiceRepository(ABC):
         pass
 
     @abstractmethod
-    def get_all(self) -> List[BaseSchemaModel]:
+    def get_multiple(self, filters: dict) -> List[BaseSchemaModel]:
         pass
 
     @abstractmethod

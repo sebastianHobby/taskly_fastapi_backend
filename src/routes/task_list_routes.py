@@ -1,7 +1,8 @@
-from typing import Annotated
+from typing import Annotated, List
 from uuid import UUID
 
 from dependency_injector.wiring import inject, Provide
+from pydantic import BaseModel
 
 from ..core.dependency_containers import Container
 from ..schemas.TaskListSchemas import TaskListResponse, TaskListCreate, TaskListUpdate
@@ -22,7 +23,7 @@ async def get_all_task_lists_and_groups(
         TaskListService, Depends(Provide[Container.task_list_service])
     ],
 ):
-    task_lists_and_groups = await task_list_service.get_all()
+    task_lists_and_groups = await task_list_service.get_multiple()
     return task_lists_and_groups
 
 

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel as BaseSchemaModel
+from pydantic import BaseModel as BaseSchemaModel, ConfigDict
 
 from src.models.db_models import TaskStatusValues
 
@@ -10,6 +10,7 @@ from src.models.db_models import TaskStatusValues
 class TaskResponse(BaseSchemaModel):
     """Schema returned to API consumers typically via a GET
     request or returned after update a resource"""
+    model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     parent_list_id: UUID
@@ -26,6 +27,7 @@ class TaskResponse(BaseSchemaModel):
 
 class TaskCreate(BaseSchemaModel):
     """Schema used by API consumers to create a Task"""
+    model_config = ConfigDict(from_attributes=True)
 
     parent_list_id: UUID
     name: str
@@ -38,6 +40,7 @@ class TaskCreate(BaseSchemaModel):
 
 class TaskUpdate(BaseSchemaModel):
     """Schema used by API consumers to update a Task"""
+    model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     parent_list_id: UUID

@@ -1,5 +1,8 @@
+import uuid
 from contextlib import asynccontextmanager
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Optional, Protocol, Dict, Callable, Any
+from uuid import UUID
 
 import fastapi.middleware.cors
 from dependency_injector.ext.starlette import Lifespan
@@ -49,3 +52,6 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+
+from pydantic import BaseModel as BaseSchemaModel

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import select, Boolean
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql.expression import or_
 from sqlmodel import Session
 from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta
 
@@ -54,9 +55,14 @@ class DatabaseRepository(
             db_model = await session.get(self.model_class, id)
             return self._data_model_to_response_schema(data_model=db_model)
 
-    async def get_all(self) -> List[ResponseSchema]:
+    async def get_multiple(self, filters: dict = None) -> List[ResponseSchema]:
         async with self.database_session_factory() as session:
             q = select(self.model_class)
+            if filters:
+                for field, value in filters.items():
+                    if hasattr(self.model_class, field) and value is not None:
+                        query = query.filter(getattr(self.model_class, field) == value)
+
             results = session.scalars(q).all()
             response_schemas: List[BaseSchemaModel] = []
             for db in results:
@@ -105,44 +111,45 @@ class DatabaseRepository(
             session.commit()
             return True
 
-    # async def index(
-    #     self,
-    #     params: Params,
-    #     filters: Optional[Dict[str, Any]] = None,
-    #     search_fields: Optional[list[str]] = None,
-    #     search_query: Optional[str] = None,
-    #     sort_field: Optional[str] = None,
-    #     sort_order: str = "desc",
-    #     load_relations: list[str] = None,
-    # ) -> Page[ModelType]:
-    #     query = select(self.model)
-    #
-    #     # Apply Filters
-    #     if filters:
-    #         for field, value in filters.items():
-    #             if hasattr(self.model, field) and value is not None:
-    #                 query = query.filter(getattr(self.model, field) == value)
-    #
-    #     # Apply Search
-    #     if search_query and search_fields:
-    #         search_conditions = [
-    #             getattr(self.model, field).ilike(f"%{search_query}%")
-    #             for field in search_fields
-    #             if hasattr(self.model, field)
-    #         ]
-    #         if search_conditions:
-    #             query = query.filter(or_(*search_conditions))
-    #
-    #     # Apply Sorting
-    #     if sort_field and hasattr(self.model, sort_field):
-    #         order_func = asc if sort_order.lower() == "asc" else desc
-    #         query = query.order_by(order_func(getattr(self.model, sort_field)))
-    #     else:
-    #         query = query.order_by(desc(self.model.id))
-    #
-    #     # Load Relations
-    #     if load_relations:
-    #         for relation in load_relations:
-    #             query = query.options(selectinload(getattr(self.model, relation)))
-    #
-    #     return await paginate(self.db, query, params)
+
+# async def index(
+#     self,
+#     params: Params,
+#     filters: Optional[Dict[str, Any]] = None,
+#     search_fields: Optional[list[str]] = None,
+#     search_query: Optional[str] = None,
+#     sort_field: Optional[str] = None,
+#     sort_order: str = "desc",
+#     load_relations: list[str] = None,
+# ) -> Page[ModelType]:
+#     query = select(self.model)
+#
+#     # Apply Filters
+#     if filters:
+#         for field, value in filters.items():
+#             if hasattr(self.model, field) and value is not None:
+#                 query = query.filter(getattr(self.model, field) == value)
+#
+#     # Apply Search
+#     if search_query and search_fields:
+#         search_conditions = [
+#             getattr(self.model, field).ilike(f"%{search_query}%")
+#             for field in search_fields
+#             if hasattr(self.model, field)
+#         ]
+#         if search_conditions:
+#             query = query.filter(or_(*search_conditions))
+#
+#     # Apply Sorting
+#     if sort_field and hasattr(self.model, sort_field):
+#         order_func = asc if sort_order.lower() == "asc" else desc
+#         query = query.order_by(order_func(getattr(self.model, sort_field)))
+#     else:
+#         query = query.order_by(desc(self.model.id))
+#
+#     # Load Relations
+#     if load_relations:
+#         for relation in load_relations:
+#             query = query.options(selectinload(getattr(self.model, relation)))
+#
+#     return await paginate(self.db, query, params)

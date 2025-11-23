@@ -47,9 +47,9 @@ class TaskListService:
             raise DataModelNotFound(f"List group with Id {group_id} not found")
         return result
 
-    async def get_all(self) -> type[TaskListAndListGroups]:
-        task_list_response = await self.list_repo.get_all()
-        list_group_response = await self.list_group_repo.get_all()
+    async def get_multiple(self, filters: dict = None) -> type[TaskListAndListGroups]:
+        task_list_response = await self.list_repo.get_multiple(filters=filters)
+        list_group_response = await self.list_group_repo.get_multiple(filters=filters)
         TaskListAndListGroups.ListGroup = list_group_response
         TaskListAndListGroups.TaskList = task_list_response
         return TaskListAndListGroups

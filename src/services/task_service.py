@@ -39,9 +39,9 @@ class TaskService:
             raise DataModelNotFound(f"Task with Id {task_id} not found")
         return result
 
-    async def get_all_tasks(self) -> List[TaskResponse]:
-        task_list_response = await self.task_repo.get_all()
-        return task_list_response
+    async def get_multiple(self, filters: dict = None) -> list[TaskResponse]:
+        task_response = await self.task_repo.get_multiple(filters=filters)
+        return task_response
 
     async def create_task(self, create_schema: TaskCreate) -> TaskResponse:
         res = await self.task_repo.create(create_schema)

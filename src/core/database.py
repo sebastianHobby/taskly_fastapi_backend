@@ -13,6 +13,7 @@ from src.models.db_models import DatabaseBaseModel
 logger = logging.getLogger("")
 
 
+# TODO consider switch to postgres - the full text search in particular seems handy
 class Database:
 
     def __init__(self, db_url: str, connection_args: dict) -> None:

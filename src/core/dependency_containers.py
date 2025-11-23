@@ -14,6 +14,7 @@ from ..models.db_models import *
 from ..repositories.DatabaseRepository import (
     DatabaseRepository,
 )
+
 from ..schemas.ListGroupSchemas import (
     ListGroupCreate,
     ListGroupResponse,
@@ -34,6 +35,8 @@ class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
         modules=[
             "src.routes.task_list_routes",
+            "src.routes.list_group_routes",
+            "src.routes.task_routes",
             "src.main",
         ]
     )
