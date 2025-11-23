@@ -3,8 +3,11 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
+from pydantic import Field
 from sqlalchemy import String, ForeignKey, Column, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
+
+from src.schemas.FilterSchemas import TaskFilterRuleTypes
 
 
 # Mixin and enum classes
@@ -75,3 +78,9 @@ class Task(hasCommonDatabaseFields, DatabaseBaseModel):
     parent_list_id: Mapped[UUID] = mapped_column(
         ForeignKey("task_lists.id"), nullable=True
     )
+
+
+class ViewFilter(hasCommonDatabaseFields, DatabaseBaseModel):
+    __tablename__ = "view_filters"
+    name: Mapped[str]
+    rules_json: Mapped[str] = mapped_column(nullable=True)

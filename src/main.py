@@ -1,19 +1,15 @@
-import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import Annotated, Optional, Protocol, Dict, Callable, Any
-from uuid import UUID
+
 
 import fastapi.middleware.cors
-from dependency_injector.ext.starlette import Lifespan
-from dependency_injector.wiring import inject, Provide
 from fastapi import FastAPI
 
 from src.core.dependency_containers import Container
+from src.migration_util import run_migrations
+from src.routes.filter_routes import filter_router
 from src.routes.list_group_routes import list_group_router
 from src.routes.task_list_routes import task_lists_router
 from src.routes.task_routes import task_router
-from src.services import task_service
 
 
 @asynccontextmanager
@@ -21,7 +17,6 @@ async def lifespan(app: FastAPI):
     # Startup events: Initialize resources here
     print("Application startup: Initializing database connection...")
     database = Container.database()
-    database.create_database()
     yield
     # Shutdown events: Clean up resources here
     print("Application shutdown: Closing database connection...")
@@ -31,12 +26,14 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     container = Container()
     database = container.database()
-    database.create_database()
-    app = FastAPI(lifespan=lifespan, debug=container.config.debug)
+    app = FastAPI(lifespan=lifespan, debug=False)
     app.container = container
     app.include_router(task_lists_router)
     app.include_router(list_group_router)
     app.include_router(task_router)
+
+    app.include_router(filter_router)
+
     # app.include_router(task_router, tags=["tasks"])
     # app.include_router(area_router, tags=["areas"])
 
@@ -53,5 +50,6 @@ def create_app() -> FastAPI:
 
 app = create_app()
 
-
-from pydantic import BaseModel as BaseSchemaModel
+# Run alembic migrations to update database tables to match model definitions and
+# create version control for schema changes
+run_migrations()

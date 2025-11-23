@@ -76,8 +76,9 @@ class DatabaseRepository(
             try:
                 db_model = self.model_class(**create_schema.model_dump())
                 session.add(db_model)
-                session.commit()
-                session.refresh(db_model)
+                await session.commit()
+
+                await session.refresh(db_model)
                 return self._data_model_to_response_schema(data_model=db_model)
             except IntegrityError:
                 raise DataModelIntegrityConflictException(

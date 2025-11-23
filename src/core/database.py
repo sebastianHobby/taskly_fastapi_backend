@@ -1,14 +1,12 @@
-from sqlalchemy import event
 import logging
 from contextlib import AbstractContextManager, asynccontextmanager
 from typing import Callable
-
-from sqlalchemy import create_engine, orm
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
-
 from src.models.db_models import DatabaseBaseModel
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger("")
 
@@ -16,35 +14,15 @@ logger = logging.getLogger("")
 # TODO consider switch to postgres - the full text search in particular seems handy
 class Database:
 
-    def __init__(self, db_url: str, connection_args: dict) -> None:
-        self._engine = create_engine(db_url, connect_args=connection_args)
-        self._session_factory = orm.scoped_session(
-            orm.sessionmaker(
-                autocommit=False,
-                autoflush=False,
-                bind=self._engine,
-            ),
+    def __init__(self, db_url: str) -> None:
+        self._engine = create_async_engine(db_url, future=True)
+        self.async_session_factory = sessionmaker(
+            self._engine, class_=AsyncSession, expire_on_commit=True
         )
 
-    def create_database(self) -> None:
-        DatabaseBaseModel.metadata.create_all(self._engine)
-
-    @event.listens_for(Engine, "connect")
-    def enable_foreign_key_constraint_sqlite(dbapi_connection, connection_record):
-        # the sqlite3 driver will not set PRAGMA foreign_keys
-        # if autocommit=False; set to True temporarily
-        ac = dbapi_connection.autocommit
-        dbapi_connection.autocommit = True
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-        print("SQlite foreign keys constraints enabled")
-        # restore previous autocommit setting
-        dbapi_connection.autocommit = ac
-
     @asynccontextmanager
-    async def session(self) -> Callable[..., AbstractContextManager[Session]]:
-        session: Session = self._session_factory()
+    async def session(self) -> Callable[..., AbstractContextManager[AsyncSession]]:
+        session: AsyncSession = self.async_session_factory()
         try:
             yield session
         except Exception:
@@ -52,7 +30,7 @@ class Database:
             session.rollback()
             raise
         finally:
-            session.close()
+            await session.close()
 
     async def shutdown(self):
         self._engine.dispose()

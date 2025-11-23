@@ -9,6 +9,7 @@ from dependency_injector.wiring import required
 from fastapi import FastAPI
 from sqlalchemy.orm.session import sessionmaker
 
+from .config import Settings
 from .database import Database
 from ..models.db_models import *
 from ..repositories.DatabaseRepository import (
@@ -42,13 +43,9 @@ class Container(containers.DeclarativeContainer):
     )
 
     config = providers.Configuration(strict=True)
-    config.from_json("src/core/config.json", required=True)
+    config.from_pydantic(Settings(), required=True)
 
-    database = providers.ThreadSafeSingleton(
-        Database,
-        db_url=config.database.url,
-        connection_args=config.database.connection_args,
-    )
+    database = providers.ThreadSafeSingleton(Database, db_url=config.database_url)
 
     task_list_repository = providers.Factory(
         DatabaseRepository[TaskList, TaskListCreate, TaskListUpdate, TaskResponse],

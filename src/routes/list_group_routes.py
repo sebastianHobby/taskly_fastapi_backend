@@ -29,6 +29,10 @@ async def get_all_task_lists_and_groups(
     return task_lists_and_groups
 
 
+# Todo implement basic filtering - decide what criteria and which models/routes it applies to in GET
+#  remember there is no support for request body in GET
+
+
 @list_group_router.get(
     "/{list_group_id}",
     status_code=status.HTTP_200_OK,
