@@ -1,10 +1,12 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from uuid import UUID, uuid4
 
 from pydantic import Field
-from sqlalchemy import String, ForeignKey, Column, Boolean, func
+from pygments.lexer import default
+from sqlalchemy import String, ForeignKey, Column, Boolean, func, TIMESTAMP
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 
 from src.schemas.FilterSchemas import TaskFilterRuleTypes
@@ -37,8 +39,12 @@ class hasCommonDatabaseFields:
     def to_dict(self):
         return {field.name: getattr(self, field.name) for field in self.__table__.c}
 
-    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(default=func.now())
+    created_date: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=datetime.now(tz=timezone.utc)
+    )
+    updated_date: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=datetime.now(tz=timezone.utc)
+    )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
 
@@ -57,8 +63,12 @@ class TaskList(hasCommonDatabaseFields, DatabaseBaseModel):
     ]  # See enum for description of the type and associated business rules
     name: Mapped[str]
     notes: Mapped[str] = mapped_column(String, nullable=True)
-    deadline_date: Mapped[datetime] = mapped_column(nullable=True)
-    start_date: Mapped[datetime] = mapped_column(nullable=True)
+    deadline_date: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    start_date: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
     parent_group_id: Mapped[UUID] = mapped_column(
         ForeignKey("task_list_groups.id"), nullable=True
     )
@@ -69,8 +79,12 @@ class Task(hasCommonDatabaseFields, DatabaseBaseModel):
     __tablename__ = "tasks"
     name: Mapped[str]
     notes: Mapped[str] = mapped_column(String, nullable=True)
-    start_date: Mapped[datetime] = mapped_column(nullable=True)
-    deadline_date: Mapped[datetime] = mapped_column(nullable=True)
+    start_date: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    deadline_date: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
     status: Mapped[TaskStatusValues] = mapped_column(
         nullable=True, default=TaskStatusValues.not_started
     )

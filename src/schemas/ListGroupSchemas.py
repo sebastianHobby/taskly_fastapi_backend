@@ -2,7 +2,7 @@ from uuid import UUID
 from datetime import datetime
 
 import pydantic
-from pydantic import ConfigDict
+from pydantic import ConfigDict, AwareDatetime
 
 from pydantic import BaseModel as BaseSchemaModel
 
@@ -13,8 +13,8 @@ class ListGroupResponse(BaseSchemaModel):
 
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_date: AwareDatetime
+    updated_datet: AwareDatetime
     name: str
 
 
@@ -31,3 +31,7 @@ class ListGroupUpdate(BaseSchemaModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     name: str
+
+
+class ListGroupDelete(BaseSchemaModel):
+    pass

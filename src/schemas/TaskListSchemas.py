@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field, AwareDatetime
 
 from pydantic import BaseModel as BaseSchemaModel
 
@@ -16,16 +16,16 @@ class TaskListResponse(BaseSchemaModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_date: AwareDatetime
+    updated_date: AwareDatetime
     parent_group_id: UUID
     type: TaskListTypes
     name: str
 
     # Optional fields
     notes: Optional[str] = None
-    start_date: Optional[datetime] = None
-    deadline_date: Optional[datetime] = None
+    start_date: Optional[AwareDatetime] = None
+    deadline_date: Optional[AwareDatetime] = None
     status: Optional[ListStatusValues] = None
 
 
@@ -37,8 +37,8 @@ class TaskListCreate(BaseSchemaModel):
     type: TaskListTypes
     name: str
     notes: Optional[str] = None
-    start_date: Optional[datetime] = None
-    deadline_date: Optional[datetime] = None
+    start_date: Optional[AwareDatetime] = None
+    deadline_date: Optional[AwareDatetime] = None
     status: Optional[ListStatusValues] = None
 
 
@@ -50,7 +50,11 @@ class TaskListUpdate(BaseSchemaModel):
     parent_group_id: UUID
     name: str
     notes: Optional[str] = None
-    start_date: Optional[datetime] = None
-    deadline_date: Optional[datetime] = None
+    start_date: Optional[AwareDatetime] = None
+    deadline_date: Optional[AwareDatetime] = None
     status: Optional[ListStatusValues] = None
     type: TaskListTypes  # Note this allows changing types. Needs appropiate validation.
+
+
+class TaskListDelete(BaseSchemaModel):
+    pass

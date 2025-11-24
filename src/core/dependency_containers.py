@@ -7,6 +7,7 @@ from dependency_injector import containers, providers
 from dependency_injector.providers import contextmanager
 from dependency_injector.wiring import required
 from fastapi import FastAPI
+from fastcrud import FastCRUD
 from sqlalchemy.orm.session import sessionmaker
 
 from .config import Settings
@@ -28,6 +29,7 @@ from ..schemas.TaskSchemas import (
     TaskCreate,
 )
 from ..services.task_list_service import TaskListService
+
 from ..services.task_service import TaskService
 
 
@@ -60,7 +62,7 @@ class Container(containers.DeclarativeContainer):
             ListGroup, ListGroupCreate, ListGroupUpdate, ListGroupResponse
         ],
         database_model_class=ListGroup,
-        update_schema_class=TaskListUpdate,
+        update_schema_class=ListGroupUpdate,
         create_schema_class=ListGroupCreate,
         response_schema_class=ListGroupResponse,
         database_session_factory=database.provided.session,
@@ -79,4 +81,23 @@ class Container(containers.DeclarativeContainer):
         list_repo=task_list_repository,
         list_group_repo=list_group_repository,
     )
+
     task_service = providers.Factory(TaskService, task_repo=task_repository)
+
+    # Testing FastCrud integration
+    task_list_fastcrud_repo = providers.Factory(
+        FastCRUD[
+            TaskList,
+            TaskListCreate,
+            TaskListUpdate,
+            None,
+            TaskListDelete,
+            TaskListResponse,
+        ],
+        model=TaskList,
+    )
+    task_list_fast_service = providers.Factory(
+        TaskListFastService,
+        fastcrud_repository=task_list_fastcrud_repo,
+        database_session_factory=database.provided.session,
+    )
