@@ -25,7 +25,7 @@ class HasForeignKeyGroupId:
 
 
 class HasForeignKeyTasklistId:
-    list_id: Mapped[UUID] = mapped_column(ForeignKey("tasklist.id"), nullable=False)
+    list_id: Mapped[UUID] = mapped_column(ForeignKey("tasklists.id"), nullable=False)
 
 
 class HasCreatedAndUpdateTimestamps:
@@ -47,11 +47,6 @@ class HasOptionalStartAndDeadlineDates:
     start_date: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
-
-
-class HasNameAndOptionalDescription:
-    name: Mapped[str] = mapped_column(TSVECTOR, nullable=False)
-    description: Mapped[str] = mapped_column(String, nullable=True)
 
 
 class HasTaskOrProjectStatus:

@@ -1,7 +1,8 @@
 from sqlalchemy import Index, func
+from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.DatabaseMixins import (
-    HasNameAndOptionalDescription,
     HasId,
     HasCreatedAndUpdateTimestamps,
     DatabaseBaseModel,
@@ -12,8 +13,19 @@ class Group(
     DatabaseBaseModel,
     HasId,
     HasCreatedAndUpdateTimestamps,
-    HasNameAndOptionalDescription,
 ):
+    name: Mapped[str] = mapped_column(TSVECTOR, nullable=False)
+    description: Mapped[str] = mapped_column(TSVECTOR, nullable=True)
     __tablename__ = "groups"
-    Index("idx_group_name", "name", postgresql_using="gin")
-    Index("idx_group_description", "description", postgresql_using="gin")
+    __table_args__ = (
+        Index(
+            "idx_group_name",
+            name,
+            postgresql_using="gin",
+        ),
+        Index(
+            "idx_group_description",
+            description,
+            postgresql_using="gin",
+        ),
+    )

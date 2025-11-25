@@ -13,10 +13,10 @@ from sqlalchemy.orm.session import sessionmaker
 
 from .config import Settings
 from .database import Database
-from ..models.GroupModel import Group
+from ..models.GroupModel import *
 from ..models.TaskListModel import *
-from ..models.TaskModel import Task
-
+from ..models.TaskModel import *
+from ..models.ViewModel import *
 from ..schemas.GroupSchemas import (
     GroupCreate,
     GroupSelect,

@@ -1,7 +1,8 @@
+from sqlalchemy import Index
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 
 from src.models.DatabaseMixins import (
-    HasNameAndOptionalDescription,
     HasId,
     HasCreatedAndUpdateTimestamps,
     DatabaseBaseModel,
@@ -11,8 +12,16 @@ from src.models.DatabaseMixins import (
 class View(
     HasId,
     HasCreatedAndUpdateTimestamps,
-    HasNameAndOptionalDescription,
     DatabaseBaseModel,
 ):
     __tablename__ = "views"
-    rules_json: Mapped[str] = mapped_column(JSONB, nullable=False)
+    rules: Mapped[str] = mapped_column(JSONB, nullable=False)
+    name: Mapped[str] = mapped_column(TSVECTOR, nullable=False)
+    description: Mapped[str] = mapped_column(TSVECTOR, nullable=True)
+    __table_args__ = (
+        Index(
+            "idx_view_rules",
+            rules,
+            postgresql_using="gin",
+        ),
+    )

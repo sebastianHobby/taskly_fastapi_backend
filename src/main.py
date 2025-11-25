@@ -19,6 +19,7 @@ async def lifespan(fast_api_app: FastAPI):
 
     fast_api_app.container = Container()
     database = fast_api_app.container.database()
+    await database.create_tables_and_indexes()
     print("Application startup: Adding exception handlers...")
     init_exception_handlers(app=fast_api_app)
     print("Application startup: Adding routes...")
