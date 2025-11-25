@@ -2,26 +2,27 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel as BaseSchemaModel, ConfigDict, AwareDatetime
+from pydantic import ConfigDict, Field, AwareDatetime
+
+from pydantic import BaseModel as BaseSchemaModel
 
 from src.schemas.SchemaMixins import (
-    HasId,
     HasCreatedAndUpdateTimestamps,
+    HasId,
     HasOptionalStartAndDeadlineDates,
     HasNameAndOptionalDescription,
-    HasTasklistId,
+    HasGroupId,
     HasTaskOrProjectStatus,
 )
 
 
-class TaskSelect(
+class TasklistSelect(
     BaseSchemaModel,
     HasId,
-    HasCreatedAndUpdateTimestamps,
     HasOptionalStartAndDeadlineDates,
     HasNameAndOptionalDescription,
+    HasGroupId,
     HasTaskOrProjectStatus,
-    HasTasklistId,
 ):
     """Schema returned to API consumers typically via a GET
     request or returned after update a resource"""
@@ -29,30 +30,30 @@ class TaskSelect(
     model_config = ConfigDict(from_attributes=True)
 
 
-class TaskCreate(
+class TasklistCreate(
     BaseSchemaModel,
     HasOptionalStartAndDeadlineDates,
     HasNameAndOptionalDescription,
+    HasGroupId,
     HasTaskOrProjectStatus,
-    HasTasklistId,
 ):
-    """Schema used by API consumers to create a Task"""
+    """Schema used by API consumers to create a Tasklist"""
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class TaskUpdate(
+class TasklistUpdate(
     BaseSchemaModel,
     HasId,
     HasOptionalStartAndDeadlineDates,
     HasNameAndOptionalDescription,
+    HasGroupId,
     HasTaskOrProjectStatus,
-    HasTasklistId,
 ):
-    """Schema used by API consumers to update a Task"""
+    """Schema used by API consumers to update a Tasklist"""
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class TaskDelete(BaseSchemaModel):
+class TasklistDelete(BaseSchemaModel):
     pass

@@ -1,53 +1,52 @@
-"""Services layer is also known as orchestration layer.
-API layer (routes) handles web stuff
-Service layer handles any business rules and depends on Repository for access to data
-API layer/Presentation --> Service Layer --> Repository
-Note this is primarily to allow dependency injection and easy mocking/limiting cost of future changes
-See https://github.com/cosmicpython/book/blob/master/chapter_04_service_layer.asciidoc
-"""
-
-import uuid
 from contextlib import AbstractContextManager
-from typing import Any, Callable, Generic, Optional
+from http import HTTPStatus
+from typing import Callable, Optional
 from uuid import UUID
 
-from sqlalchemy.orm import Session
-from pydantic import BaseModel as BaseSchemaModel
-
-from src.schemas.TaskListSchemas import TaskListResponse, TaskListCreate
 from fastcrud import FastCRUD
 from fastcrud.types import *
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
+
+from src.schemas.ListSchemas import TasklistSelect, TasklistCreate, TasklistUpdate
+from src.core.ServiceExceptions import (
+    TasklyServiceException,
+    TasklyDuplicateData,
+    TasklyDataNotFound,
+)
 
 
-class TasklyCrudService(
-    Generic[
-        ModelType,
-        CreateSchemaType,
-        UpdateSchemaType,
-        UpdateSchemaInternalType,
-        DeleteSchemaType,
-        SelectSchemaType,
-    ]
-):
-    """Defines generic CRUD operations - depends on FastCrud framework as repository.
-    When business rules need to be added to service layer specific to a type simply subclass
-    this method apply your business rules and call the parent class for basic CRUD.
-    Service layer restricts functionality to sensible defaults"""
-
+class TasklistService:
     def __init__(
         self,
         database_session_factory: Callable[..., AbstractContextManager[Session]],
-        fastcrud_repository: FastCRUD,
-        select_schema: SelectSchemaType,
+        list_repository: FastCRUD,
     ):
 
-        self.fastcrud_repository = fastcrud_repository
+        self.repository = list_repository
         self.database_session_factory = database_session_factory
-        self.select_schema = select_schema
+
+    async def _validate_update_or_create(
+        self, data: Union[TasklistUpdate, TasklistCreate]
+    ):
+        """Handles validations done before calling repository to update data.
+        Note basic data type validations are already done by pydantic. This logic
+        caters for specific business rules and relationships between domain entities"""
+        if isinstance(data, TasklistUpdate):
+            if not await self.exists(id=data.id):
+                raise TasklyDataNotFound(id=data.id)
+
+        if await self.exists(name=data.name, parent_group_id=data.parent_group_id):
+            raise TasklyDuplicateData(
+                message=f"Tasklist '{data.name}' already exists under group '{data.parent_group_id}'"
+            )
+
+    async def _validate_delete(self, _id):
+        pass
 
     async def create(
         self, create_schema: CreateSchemaType, commit=True
-    ) -> SelectSchemaType:
+    ) -> TasklistSelect:
         """
         Create a new record in the database.
         Args:
@@ -58,53 +57,51 @@ class TasklyCrudService(
             The created Pydantic model representing the data created
         """
         async with self.database_session_factory() as session:
-
-            res = await self.fastcrud_repository.create(
+            await self._validate_update_or_create(data=create_schema)
+            res = await self.repository.create(
                 db=session,
                 object=create_schema,
                 commit=commit,
-                schema_to_select=self.select_schema,
+                schema_to_select=TasklistSelect,
                 return_as_model=True,
             )
             return res
 
-    async def get(self, id_: UUID) -> SelectSchemaType:
+    async def get(self, _id: UUID) -> TasklistSelect:
         """
         Create a new record in the database.
         Args:
-            id_: The UUID for the requested resource
+            _id: The UUID for the requested resource
         Raises:
             MultipleResultsFound if multiple matches for ID found
         Returns:
             The created Pydantic model representing the data created
         """
         async with self.database_session_factory() as session:
-
-            res = await self.fastcrud_repository.get(
+            res = await self.repository.get(
                 db=session,
-                schema_to_select=self.select_schema,
+                schema_to_select=TasklistSelect,
                 return_as_model=True,
                 one_or_none=True,
-                id=id_,
+                id=_id,
             )
+            if not res:
+                raise TasklyDataNotFound(id=_id)
             return res
 
     async def update(
         self,
-        _id: UUID,
-        update_schema: UpdateSchemaType,
+        update_schema: TasklistCreate,
         commit=True,
-    ) -> SelectSchemaType:
+    ) -> TasklistSelect:
         """
         Updates an existing record or multiple records in the database based on specified filters. This method allows for precise targeting of records to update.
 
         For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
-            db: The database session to use for the operation.
             update_schema: A Pydantic schema containing the update data.
             commit: If `True`, commits the transaction immediately. Default is `True`.
-            id_: UUID of the record to update.
 
         Returns:
             The updated record as Pydantic model instance
@@ -116,13 +113,15 @@ class TasklyCrudService(
         """
         async with self.database_session_factory() as session:
 
-            res = await self.fastcrud_repository.update(
+            await self._validate_update_or_create(data=update_schema)
+
+            res = await self.repository.update(
                 db=session,
                 object=update_schema,
                 allow_multiple=False,
                 commit=commit,
-                id=_id,
-                schema_to_select=self.select_schema,
+                id=update_schema.id,
+                schema_to_select=TasklistSelect,
                 return_as_model=True,
             )
 
@@ -167,10 +166,10 @@ class TasklyCrudService(
             ```
         """
         async with self.database_session_factory() as session:
-            res = await self.fastcrud_repository.exists(**kwargs)
+            res = await self.repository.exists(db=session, **kwargs)
             return res
 
-    async def db_delete(
+    async def delete(
         self,
         _id: UUID,
         commit: bool = False,
@@ -197,18 +196,18 @@ class TasklyCrudService(
 
         """
         async with self.database_session_factory() as session:
-            res = await self.fastcrud_repository.delete(
+            res = await self.repository.db_delete(
                 db=session,
                 allow_multiple=False,
                 commit=commit,
-                id_=_id,
+                id=_id,
             )
             return res
 
     async def upsert(
         self,
-        data: Union[UpdateSchemaType, CreateSchemaType],
-    ) -> SelectSchemaType:
+        data: Union[TasklistUpdate, TasklistCreate],
+    ) -> TasklistSelect:
         """Update the instance or create it if it doesn't exist.
 
         Note: This method will perform two transactions to the database (get and create or update).
@@ -219,10 +218,12 @@ class TasklyCrudService(
             The created or updated instance:
         """
         async with self.database_session_factory() as session:
-            res = await self.fastcrud_repository.upsert(
+            await self._validate_update_or_create(data=data)
+
+            res = await self.repository.upsert(
                 db=session,
                 instance=data,
-                schema_to_select=self.select_schema,
+                schema_to_select=TasklistSelect,
                 return_as_model=True,
             )
             return res
@@ -233,6 +234,7 @@ class TasklyCrudService(
         limit: Optional[int] = 100,
         sort_columns: Optional[Union[str, list[str]]] = None,
         sort_orders: Optional[Union[str, list[str]]] = None,
+        return_total_count: bool = True,
         **kwargs: Any,
     ):
         """
@@ -246,27 +248,31 @@ class TasklyCrudService(
              which you should only do if you really seriously want to allow the user to get all the data at once.
             sort_columns: Column names to sort the results by.
             sort_orders: Corresponding sort orders (`"asc"`, `"desc"`) for each column in `sort_columns`.
+            return_total_count: If `True`, return the total number of records.
             **kwargs: Filters to apply to the query, including advanced comparison operators for more detailed querying.
         Returns:
-            A dictionary containing Dict with "data": List[SelectSchemaType] and
+            A dictionary containing Dict with "data": Tasklist[SelectSchemaType] and
             "total_count": int
         Raises:
             ValueError: If `limit` or `offset` is negative
         """
         async with self.database_session_factory() as session:
-            res = await self.fastcrud_repository.get_multi(
+            res = await self.repository.get_multi(
                 db=session,
                 offset=offset,
                 limit=limit,
-                schema_to_select=self.select_schema,
+                schema_to_select=TasklistSelect,
                 return_as_model=True,
                 sort_columns=sort_columns,
                 sort_orders=sort_orders,
+                return_total_count=return_total_count,
+                **kwargs,
             )
+            return res
 
     async def upsert_multi(
-        self, instances: list[Union[UpdateSchemaType, CreateSchemaType]], commit: bool
-    ) -> UpsertMultiResponseModel[SelectSchemaType]:
+        self, instances: list[Union[TasklistUpdate, TasklistCreate]], commit: bool
+    ) -> UpsertMultiResponseModel[TasklistSelect]:
         """
         Upsert multiple records in the database. The underlying implementation varies based on the database dialect.
 
@@ -276,7 +282,7 @@ class TasklyCrudService(
 
         Returns:
             The upserted records as a dictionary containing the operation results:
-                UpsertMultiResponseModel[SelectSchemaType](`Dict[str, List[SelectSchemaType]]`)
+                UpsertMultiResponseModel[SelectSchemaType](`Dict[str, Tasklist[SelectSchemaType]]`)
             The dictionary contains keys like "updated" and "created" with lists of corresponding records.
 
         Raises:
@@ -284,78 +290,13 @@ class TasklyCrudService(
             NotImplementedError: If the database dialect is not supported for upsert multi.
         """
         async with self.database_session_factory() as session:
-            res = await self.fastcrud_repository.upsert_multi(
+            for obj in instances:
+                await self._validate_update_or_create(data=obj)
+            res = await self.repository.upsert_multi(
                 db=session,
                 instances=instances,
                 commit=commit,
-                schema_to_select=self.select_schema,
+                schema_to_select=TasklistSelect,
                 return_as_model=True,
             )
             return res
-
-
-# Todo review below select function from FastCrud for use in filters
-# async def select(
-#      self,
-#      schema_to_select: Optional[type[SelectSchemaType]] = None,
-#      sort_columns: Optional[Union[str, list[str]]] = None,
-#      sort_orders: Optional[Union[str, list[str]]] = None,
-#      **kwargs: Any,
-#  ) -> Select:
-#      """
-#      Constructs a SQL Alchemy `Select` statement with optional column selection, filtering, and sorting.
-#
-#      This method allows for advanced filtering through comparison operators, enabling queries to be refined beyond simple equality checks.
-#
-#      For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
-#
-#      Args:
-#          schema_to_select: Pydantic schema to determine which columns to include in the selection. If not provided, selects all columns of the model.
-#          sort_columns: A single column name or list of column names to sort the query results by. Must be used in conjunction with `sort_orders`.
-#          sort_orders: A single sort order (`"asc"` or `"desc"`) or a list of sort orders, corresponding to each column in `sort_columns`. If not specified, defaults to ascending order for all `sort_columns`.
-#          **kwargs: Filters to apply to the query, including advanced comparison operators for more detailed querying.
-#
-#      Returns:
-#          An SQL Alchemy `Select` statement object that can be executed or further modified.
-#
-#      Examples:
-#          Selecting specific columns with filtering and sorting:
-#
-#          ```python
-#          stmt = await user_crud.select(
-#              schema_to_select=ReadUserSchema,
-#              sort_columns=['age', 'name'],
-#              sort_orders=['asc', 'desc'],
-#              age__gt=18,
-#          )
-#          ```
-#
-#          Creating a statement to select all users without any filters:
-#
-#          ```python
-#          stmt = await user_crud.select()
-#          ```
-#
-#          Selecting users with a specific `role`, ordered by `name`:
-#
-#          ```python
-#          stmt = await user_crud.select(
-#              schema_to_select=UserReadSchema,
-#              sort_columns='name',
-#              role='admin',
-#          )
-#          ```
-#
-#      Note:
-#          This method does not execute the generated SQL statement.
-#          Use `db.execute(stmt)` to run the query and fetch results.
-#      """
-#      to_select = extract_matching_columns_from_schema(
-#          model=self.model, schema=schema_to_select
-#      )
-#      filters = self._filter_processor.parse_filters(**kwargs)
-#      stmt = select(*to_select).filter(*filters)
-#
-#      if sort_columns:
-#          stmt = self._query_builder.apply_sorting(stmt, sort_columns, sort_orders)
-#      return stmt

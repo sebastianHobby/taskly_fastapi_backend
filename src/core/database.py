@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
-from src.models.db_models import DatabaseBaseModel
+from src.models.DatabaseMixins import DatabaseBaseModel
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger("")
