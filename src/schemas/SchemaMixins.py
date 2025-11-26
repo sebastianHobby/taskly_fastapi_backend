@@ -6,12 +6,14 @@ from pydantic import (
     ConfigDict,
     AwareDatetime,
     StringConstraints,
+    model_validator,
+    BaseModel,
+    Field,
 )
-
 
 """ Defines common schema elements shared across multiple schema models.
 Define in one spot so we do not have to keep multiple in sync. Mix in models
-specific to a type e.g. Tasklist are stored under the corresponding schema file"""
+specific to a type e.g. Project are stored under the corresponding schema file"""
 
 
 class HasId:
@@ -22,16 +24,10 @@ class HasId:
     id: UUID
 
 
-class HasGroupId:
+class HasParentProjectId:
     "Used for models with foreign key link to group"
 
-    group_id: UUID
-
-
-class HasTasklistId:
-    "Used for models with foreign key link to task list"
-
-    tasklist_id: UUID
+    parent_project_id: Optional[UUID] = None
 
 
 class HasCreatedAndUpdateTimestamps:
@@ -39,8 +35,8 @@ class HasCreatedAndUpdateTimestamps:
     request or returned after update a resource"""
 
     model_config = ConfigDict(from_attributes=True)
-    created_datetime: AwareDatetime
-    updated_datetime: AwareDatetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
 
 
 class HasOptionalStartAndDeadlineDates:
@@ -65,3 +61,20 @@ class TaskAndProjectStatuses(Enum):
 
 class HasTaskOrProjectStatus:
     status: TaskAndProjectStatuses = TaskAndProjectStatuses.not_started
+
+
+class ProjectTypes(Enum):
+    """Project types define what fields are allowed.
+    Projects - allow all fields including startdate/deadline
+    Areas - allows only name and description. These represent areas of focus/life values
+    """
+
+    project = "project"
+    area = "area"
+
+
+class HasProjectType:
+    type: Annotated[
+        ProjectTypes,
+        Field(description="See ProjectTypes type description for details"),
+    ]

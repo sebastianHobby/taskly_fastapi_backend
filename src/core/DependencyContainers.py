@@ -1,81 +1,59 @@
 """Containers module."""
 
-from contextlib import asynccontextmanager
-from sys import modules
-
-import fastapi
 from dependency_injector import containers, providers
-from dependency_injector.providers import contextmanager
-from dependency_injector.wiring import required
-from fastapi import FastAPI
 from fastcrud import FastCRUD
-from sqlalchemy.orm.session import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import sessionmaker
 
 from .config import Settings
-from .database import Database
-from ..models.GroupModel import *
-from ..models.TaskListModel import *
-from ..models.TaskModel import *
-from ..models.ViewModel import *
-from ..schemas.GroupSchemas import (
-    GroupCreate,
-    GroupSelect,
-    GroupUpdate,
-    GroupDelete,
-)
-from ..schemas.ListSchemas import (
-    TasklistSelect,
-    TasklistCreate,
-    TasklistUpdate,
-    TasklistDelete,
+from .databasemanager import DatabaseManager
+from ..filtersets.filtersets import ProjectFilterParams, ProjectFilterSet
+from ..models.project_model import *
+from ..models.task_model import *
+from ..repository.database_repository import DatabaseRepository
+from ..schemas.project_schemas import (
+    ProjectResponse,
+    ProjectCreate,
+    ProjectUpdate,
+    ProjectDelete,
 )
 from ..schemas.TaskSchemas import (
-    TaskSelect,
+    TaskResponse,
     TaskUpdate,
     TaskCreate,
     TaskDelete,
 )
-from ..services.TaskService import TasklyTaskService
-from ..services.GroupService import GroupService
-from ..services.TasklistService import TasklistService
+from ..services.task_service import TasklyTaskService
+from ..services.project_service import ProjectService
 
 
 class Container(containers.DeclarativeContainer):
 
     wiring_config = containers.WiringConfiguration(
-        packages=["src.routes"], modules=["src.main"]
+        packages=["src.routes", "src.repository"], modules=["src.main"]
     )
 
     config = providers.Configuration(strict=True)
     config.from_pydantic(Settings(), required=True)
 
-    database = providers.ThreadSafeSingleton(Database, db_url=config.database_url)
-
-    # Testing FastCrud integration
-    list_repo = providers.Factory(
-        FastCRUD[
-            Tasklist,
-            TasklistCreate,
-            TasklistUpdate,
-            None,
-            TasklistDelete,
-            TasklistSelect,
-        ],
-        model=Tasklist,
+    database_manager = providers.ThreadSafeSingleton(
+        DatabaseManager, db_url=config.database_url
     )
 
-    group_repo = providers.Factory(
-        FastCRUD[
-            Group,
-            GroupCreate,
-            GroupUpdate,
-            None,
-            GroupDelete,
-            GroupSelect,
-        ],
-        model=Group,
-    )
+    # session = database_manager().get_async_session()
 
+    # project_repo = providers.Factory(
+    #     FastCRUD[
+    #         Project,
+    #         ProjectCreate,
+    #         ProjectUpdate,
+    #         None,
+    #         ProjectDelete,
+    #         ProjectResponse,
+    #     ],
+    #     model=Project,
+    # )
+    #
     task_repo = providers.Factory(
         FastCRUD[
             Task,
@@ -83,25 +61,29 @@ class Container(containers.DeclarativeContainer):
             TaskUpdate,
             None,
             TaskDelete,
-            TaskSelect,
+            TaskResponse,
         ],
-        model=Group,
+        model=Task,
     )
 
-    list_service = providers.Factory(
-        TasklistService,
-        list_repository=list_repo,
-        database_session_factory=database.provided.session,
+    project_repo = providers.Factory(
+        DatabaseRepository[
+            Project,
+            ProjectCreate,
+            ProjectUpdate,
+            ProjectResponse,
+            ProjectFilterParams,
+            ProjectFilterSet,
+        ],
+        model=Project,
+        response_schema=ProjectResponse,
+        session_factory=database_manager.provided.get_async_session,
     )
 
-    group_service = providers.Factory(
-        GroupService,
-        group_repository=group_repo,
-        database_session_factory=database.provided.session,
-    )
+    project_service = providers.Factory(ProjectService, repository=project_repo)
 
     task_service = providers.Factory(
         TasklyTaskService,
         task_repository=task_repo,
-        database_session_factory=database.provided.session,
+        database_session_factory=database_manager.provided.get_async_session,
     )

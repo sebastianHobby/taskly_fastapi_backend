@@ -8,37 +8,38 @@ from fastcrud.types import *
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from src.schemas.ListSchemas import TasklistSelect, TasklistCreate, TasklistUpdate
-from src.core.ServiceExceptions import (
+from src.schemas.TaskSchemas import TaskResponse, TaskCreate, TaskUpdate
+from src.core.exceptions import (
     TasklyServiceException,
-    TasklyDuplicateData,
     TasklyDataNotFound,
+    TasklyDuplicateData,
 )
 
 
-class TasklistService:
+class TasklyTaskService:
     def __init__(
         self,
         database_session_factory: Callable[..., AbstractContextManager[Session]],
-        list_repository: FastCRUD,
+        task_repository: FastCRUD,
     ):
 
-        self.repository = list_repository
+        self.repository = task_repository
         self.database_session_factory = database_session_factory
 
-    async def _validate_update_or_create(
-        self, data: Union[TasklistUpdate, TasklistCreate]
-    ):
+    async def _validate_update_or_create(self, data: Union[TaskUpdate, TaskCreate]):
         """Handles validations done before calling repository to update data.
         Note basic data type validations are already done by pydantic. This logic
         caters for specific business rules and relationships between domain entities"""
-        if isinstance(data, TasklistUpdate):
+        if isinstance(data, TaskUpdate):
             if not await self.exists(id=data.id):
                 raise TasklyDataNotFound(id=data.id)
-
-        if await self.exists(name=data.name, parent_group_id=data.parent_group_id):
+        if await self.exists(name=data.name, parent_group_id=data.project_id):
             raise TasklyDuplicateData(
-                message=f"Tasklist '{data.name}' already exists under group '{data.parent_group_id}'"
+                message=f"Task '{data.name}' already exists under project '{data.parent_list_id}'",
+            )
+        elif await self.exists(name=data.name, parent_group_id=data.parent_task_id):
+            raise TasklyDuplicateData(
+                message=f"Task '{data.name}' already exists under parent task Id '{data.parent_task_id}'",
             )
 
     async def _validate_delete(self, _id):
@@ -46,9 +47,9 @@ class TasklistService:
 
     async def create(
         self, create_schema: CreateSchemaType, commit=True
-    ) -> TasklistSelect:
+    ) -> TaskResponse:
         """
-        Create a new record in the database.
+        Create a new record in the database_manager.
         Args:
             create_schema: The Pydantic schema containing the data to be saved.
             commit: If `True`, commits the transaction immediately. Default is `True`.
@@ -62,14 +63,14 @@ class TasklistService:
                 db=session,
                 object=create_schema,
                 commit=commit,
-                schema_to_select=TasklistSelect,
+                schema_to_select=TaskResponse,
                 return_as_model=True,
             )
             return res
 
-    async def get(self, _id: UUID) -> TasklistSelect:
+    async def get(self, _id: UUID) -> TaskResponse:
         """
-        Create a new record in the database.
+        Create a new record in the database_manager.
         Args:
             _id: The UUID for the requested resource
         Raises:
@@ -80,28 +81,32 @@ class TasklistService:
         async with self.database_session_factory() as session:
             res = await self.repository.get(
                 db=session,
-                schema_to_select=TasklistSelect,
+                schema_to_select=TaskResponse,
                 return_as_model=True,
                 one_or_none=True,
                 id=_id,
             )
             if not res:
-                raise TasklyDataNotFound(id=_id)
+                raise TasklyServiceException(
+                    status=HTTPStatus.NOT_FOUND,
+                    message=f"Resource for primary_key {_id} not found",
+                )
             return res
 
     async def update(
         self,
-        update_schema: TasklistCreate,
+        update_schema: TaskCreate,
         commit=True,
-    ) -> TasklistSelect:
+    ) -> TaskResponse:
         """
-        Updates an existing record or multiple records in the database based on specified filters. This method allows for precise targeting of records to update.
+        Updates an existing record or multiple records in the database_manager based on specified filters. This method allows for precise targeting of records to update.
 
         For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
             update_schema: A Pydantic schema containing the update data.
             commit: If `True`, commits the transaction immediately. Default is `True`.
+            primary_key: UUID of the record to update.
 
         Returns:
             The updated record as Pydantic model instance
@@ -121,13 +126,13 @@ class TasklistService:
                 allow_multiple=False,
                 commit=commit,
                 id=update_schema.id,
-                schema_to_select=TasklistSelect,
+                schema_to_select=TaskResponse,
                 return_as_model=True,
             )
 
             return res
 
-    async def exists(self, **kwargs) -> bool:
+    async def exists(self, session: AsyncSession = None, **kwargs) -> bool:
         """
         Checks if any records exist that match the given filter conditions.
 
@@ -144,30 +149,35 @@ class TasklistService:
             Check if a user with a specific ID exists:
 
             ```python
-            exists = await user_crud.exists(db, id=1)
+            exists = await user_crud.exists(session, primary_key=1)
             ```
 
             Check if any user is older than 30:
 
             ```python
-            exists = await user_crud.exists(db, age__gt=30)
+            exists = await user_crud.exists(session, age__gt=30)
             ```
 
             Check if any user was registered before Jan 1, 2020:
 
             ```python
-            exists = await user_crud.exists(db, registration_date__lt=datetime(2020, 1, 1))
+            exists = await user_crud.exists(session, registration_date__lt=datetime(2020, 1, 1))
             ```
 
             Check if a username other than `admin` exists:
 
             ```python
-            exists = await user_crud.exists(db, username__ne='admin')
+            exists = await user_crud.exists(session, username__ne='admin')
             ```
         """
-        async with self.database_session_factory() as session:
+        if session:
+            # Calling method has provided session
             res = await self.repository.exists(db=session, **kwargs)
             return res
+        else:
+            async with self.database_session_factory() as session:
+                res = await self.repository.exists(db=session, **kwargs)
+                return res
 
     async def delete(
         self,
@@ -175,7 +185,7 @@ class TasklistService:
         commit: bool = False,
     ) -> None:
         """
-        Deletes a record or multiple records from the database based on specified filters.
+        Deletes a record or multiple records from the database_manager based on specified filters.
 
         For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
 
@@ -187,12 +197,6 @@ class TasklistService:
 
         Raises:
             MultipleResultsFound: If more than one record matches the filters.
-
-        Examples:
-            Delete a user based on their ID using kwargs:
-
-            ```python
-            await user_crud.db_delete(_id=1)
 
         """
         async with self.database_session_factory() as session:
@@ -206,11 +210,11 @@ class TasklistService:
 
     async def upsert(
         self,
-        data: Union[TasklistUpdate, TasklistCreate],
-    ) -> TasklistSelect:
+        data: Union[TaskUpdate, TaskCreate],
+    ) -> TaskResponse:
         """Update the instance or create it if it doesn't exist.
 
-        Note: This method will perform two transactions to the database (get and create or update).
+        Note: This method will perform two transactions to the database_manager (get and create or update).
 
         Args:
             data: A Pydantic schema instance representing the instance either for update or creation.
@@ -223,7 +227,7 @@ class TasklistService:
             res = await self.repository.upsert(
                 db=session,
                 instance=data,
-                schema_to_select=TasklistSelect,
+                schema_to_select=TaskResponse,
                 return_as_model=True,
             )
             return res
@@ -251,7 +255,7 @@ class TasklistService:
             return_total_count: If `True`, return the total number of records.
             **kwargs: Filters to apply to the query, including advanced comparison operators for more detailed querying.
         Returns:
-            A dictionary containing Dict with "data": Tasklist[SelectSchemaType] and
+            A dictionary containing Dict with "data": Task[SelectSchemaType] and
             "total_count": int
         Raises:
             ValueError: If `limit` or `offset` is negative
@@ -261,7 +265,7 @@ class TasklistService:
                 db=session,
                 offset=offset,
                 limit=limit,
-                schema_to_select=TasklistSelect,
+                schema_to_select=TaskResponse,
                 return_as_model=True,
                 sort_columns=sort_columns,
                 sort_orders=sort_orders,
@@ -271,23 +275,23 @@ class TasklistService:
             return res
 
     async def upsert_multi(
-        self, instances: list[Union[TasklistUpdate, TasklistCreate]], commit: bool
-    ) -> UpsertMultiResponseModel[TasklistSelect]:
+        self, instances: list[Union[TaskUpdate, TaskCreate]], commit: bool
+    ) -> UpsertMultiResponseModel[TaskResponse]:
         """
-        Upsert multiple records in the database. The underlying implementation varies based on the database dialect.
+        Upsert multiple records in the database_manager. The underlying implementation varies based on the database_manager dialect.
 
         Args:
-            instances: A list of Pydantic schemas representing the instances to upsert.
+            instances: A task of Pydantic schemas representing the instances to upsert.
             commit: If True, commits the transaction immediately. Default is False.
 
         Returns:
             The upserted records as a dictionary containing the operation results:
-                UpsertMultiResponseModel[SelectSchemaType](`Dict[str, Tasklist[SelectSchemaType]]`)
-            The dictionary contains keys like "updated" and "created" with lists of corresponding records.
+                UpsertMultiResponseModel[SelectSchemaType](`Dict[str, Task[SelectSchemaType]]`)
+            The dictionary contains keys like "updated" and "created" with tasks of corresponding records.
 
         Raises:
             ValueError: If the MySQL dialect is used with filters, return_columns, schema_to_select, or return_as_model.
-            NotImplementedError: If the database dialect is not supported for upsert multi.
+            NotImplementedError: If the database_manager dialect is not supported for upsert multi.
         """
         async with self.database_session_factory() as session:
             for obj in instances:
@@ -296,7 +300,7 @@ class TasklistService:
                 db=session,
                 instances=instances,
                 commit=commit,
-                schema_to_select=TasklistSelect,
+                schema_to_select=TaskResponse,
                 return_as_model=True,
             )
             return res

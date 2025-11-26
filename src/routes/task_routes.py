@@ -9,7 +9,7 @@ from .utils import generate_multi_get_description
 from ..core.DependencyContainers import Container
 from ..schemas.QueryParamHelper import TaskQueryParams
 from ..schemas.TaskSchemas import (
-    TaskSelect,
+    TaskResponse,
     TaskUpdate,
     TaskCreate,
 )
@@ -20,7 +20,7 @@ task_service = Provide[Container.task_service]
 
 
 @task_router.get(
-    path="/{id}", status_code=status.HTTP_200_OK, response_model=TaskSelect
+    path="/{id}", status_code=status.HTTP_200_OK, response_model=TaskResponse
 )
 async def get(id: UUID):
     return await task_service.get(_id=id)
@@ -29,7 +29,7 @@ async def get(id: UUID):
 @task_router.get(
     path="/",
     status_code=status.HTTP_200_OK,
-    response_model=list[TaskSelect],
+    response_model=list[TaskResponse],
     description=(generate_multi_get_description(model_name="Task")),
 )
 async def get_multi(filter_query: Annotated[TaskQueryParams, Query()]):
@@ -41,14 +41,16 @@ async def get_multi(filter_query: Annotated[TaskQueryParams, Query()]):
 
 
 @task_router.post(
-    path="/", status_code=status.HTTP_201_CREATED, response_model=TaskSelect
+    path="/", status_code=status.HTTP_201_CREATED, response_model=TaskResponse
 )
 async def create(create_schema: TaskCreate):
     res = await task_service.create(create_schema=create_schema, commit=True)
     return res
 
 
-@task_router.patch(path="/", status_code=status.HTTP_200_OK, response_model=TaskSelect)
+@task_router.patch(
+    path="/", status_code=status.HTTP_200_OK, response_model=TaskResponse
+)
 async def update(update_schema: TaskUpdate):
     res = await task_service.update(update_schema=update_schema, commit=True)
     return res
@@ -56,5 +58,5 @@ async def update(update_schema: TaskUpdate):
 
 @task_router.delete(path="/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete(id: UUID):
-    res = await task_service.delete(_id=id, commit=True)
+    res = await task_service.delete(primary_key=id, commit=True)
     return res

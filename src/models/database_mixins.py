@@ -1,38 +1,36 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import String, ForeignKey, TIMESTAMP, Index, func
-from sqlalchemy.ext.indexable import index_property
+from sqlalchemy import TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+from sqlalchemy_mixins.repr import ReprMixin
+from sqlalchemy_mixins.serialize import SerializeMixin
 
 from src.schemas.SchemaMixins import TaskAndProjectStatuses
 
-from sqlalchemy.dialects.postgresql import TSVECTOR
+
+class Base(DeclarativeBase):
+    __abstract__ = True
 
 
-class DatabaseBaseModel(DeclarativeBase):
+class DatabaseBaseModel(Base, ReprMixin, SerializeMixin):
+    __abstract__ = True
+    __repr__ = ReprMixin.__repr__
+
     pass
 
 
 class HasId:
-    """Defines common fields for all database models"""
+    """Defines common fields for all database_manager models"""
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
 
-class HasForeignKeyGroupId:
-    group_id: Mapped[UUID] = mapped_column(ForeignKey("groups.id"), nullable=False)
-
-
-class HasForeignKeyTasklistId:
-    list_id: Mapped[UUID] = mapped_column(ForeignKey("tasklists.id"), nullable=False)
-
-
 class HasCreatedAndUpdateTimestamps:
-    created_datetime: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), default=datetime.now(tz=timezone.utc), nullable=False
     )
-    updated_datetime: Mapped[datetime] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         default=datetime.now(tz=timezone.utc),
         onupdate=datetime.now(tz=timezone.utc),

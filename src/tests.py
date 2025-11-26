@@ -125,7 +125,7 @@ def test_get_by_uuid_404(client):
 # assert response.status_code == 404
 
 
-# project_repo_mock.get_one_by_uuid.assert_called_once_with(id=non_existant_uuid)
+# project_repo_mock.get_one_by_uuid.assert_called_once_with(primary_key=non_existant_uuid)
 
 
 #
@@ -144,7 +144,7 @@ def test_get_by_uuid_404(client):
 # def test_add(_, client):
 #     repository_mock = mock.Mock(spec=UserRepository)
 #     repository_mock.add.return_value = User(
-#         id=1,
+#         primary_key=1,
 #         email="xyz@email.com",
 #         hashed_password="pwd",
 #         is_active=True,
@@ -156,7 +156,7 @@ def test_get_by_uuid_404(client):
 #     assert response.status_code == 201
 #     data = response.json()
 #     assert data == {
-#         "id": 1,
+#         "primary_key": 1,
 #         "email": "xyz@email.com",
 #         "hashed_password": "pwd",
 #         "is_active": True,
