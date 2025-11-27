@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="taskly_fastapi_backend" type="Python.FastAPI">
-    <option name="file" value="C:\Users\User\PycharmProjects\taskly_fastapi_backend\src\main.py" />
+    <option name="file" value="C:\Users\User\PycharmProjects\taskly_fastapi_backend\app\main.py" />
     <module name="taskly_fastapi_backend" />
     <option name="ENV_FILES" value="" />
     <option name="INTERPRETER_OPTIONS" value="" />
