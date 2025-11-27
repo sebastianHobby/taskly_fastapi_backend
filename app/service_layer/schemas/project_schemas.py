@@ -1,7 +1,7 @@
 from pydantic import BaseModel as BaseSchemaModel
 from pydantic import ConfigDict
 
-from app.service_layer.schemas.SchemaMixins import (
+from app.service_layer.schemas.schema_mixins import (
     HasId,
     HasOptionalStartAndDeadlineDates,
     HasNameAndOptionalDescription,

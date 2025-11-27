@@ -10,7 +10,7 @@ from app.repository_layer.models.model_mixins import (
     HasCommonFields,
     HasStatus,
 )
-from app.repository_layer.models.enumerations import ProjectTypes, FilterTypes
+from app.repository_layer.models.enumerations import ProjectTypes
 import sqlalchemy
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -81,5 +81,6 @@ class Filter(
 ):
     __repr_attrs__ = ["name"]  # we want to display name in repr string
     name: Mapped[str] = mapped_column(nullable=False)
+    description = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     filter_as_json = sqlalchemy.Column(JSONB, nullable=False)
     __tablename__ = "filters"

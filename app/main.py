@@ -3,6 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 
+from app.api.routes.filter_routes import filter_router
 from app.api.routes.project_routes import project_router
 from app.api.routes.task_routes import task_router
 from app.core_layer.config import settings
@@ -40,3 +41,4 @@ if settings.all_cors_origins:
 # Add routes
 app.include_router(project_router)
 app.include_router(task_router)
+app.include_router(filter_router)

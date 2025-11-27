@@ -1,4 +1,3 @@
-import enum
 from enum import Enum
 
 
@@ -16,8 +15,3 @@ class ProjectTypes(Enum):
 
     project = "project"
     area = "area"
-
-
-class FilterTypes(enum.Enum):
-    Project = enum.auto()
-    Task = enum.auto()

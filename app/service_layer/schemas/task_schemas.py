@@ -8,7 +8,7 @@ from pydantic import (
     Field,
 )
 
-from app.service_layer.schemas.SchemaMixins import (
+from app.service_layer.schemas.schema_mixins import (
     HasId,
     HasCreatedAndUpdateTimestamps,
     HasOptionalStartAndDeadlineDates,
