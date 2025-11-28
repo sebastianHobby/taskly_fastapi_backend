@@ -7,25 +7,20 @@ from app.api.routes.filter_routes import filter_router
 from app.api.routes.project_routes import project_router
 from app.api.routes.task_routes import task_router
 from app.core_layer.config import settings
+from app.core_layer.database import create_tables_and_indexes
 from app.core_layer.dependency_injector import TasklyDependencyContainer
 from app.core_layer.exception_handlers import (
-    app_exception_handler,
-    http_exception_handler,
     TasklyBaseException,
-    generic_exception_handler,
-    validation_exception_handler,
+    app_specific_exception_handler,
 )
+from app.service_layer.service_exceptions import TasklyServiceValidationError
 
 app = FastAPI(debug=False)
 app.container = TasklyDependencyContainer()
 # Generic handler for taskly errors including subclassed exceptions
-app.add_exception_handler(TasklyBaseException, app_exception_handler)
 # Exceptions raised by framework e.g. pydantic validations
-app.add_exception_handler(StarletteHTTPException, http_exception_handler)
-app.add_exception_handler(RequestValidationError, validation_exception_handler)
-
-# General uncaught exceptions - for the unknown.
-app.add_exception_handler(Exception, generic_exception_handler)
+app.add_exception_handler(TasklyServiceValidationError, app_specific_exception_handler)
+app.add_exception_handler(TasklyBaseException, app_specific_exception_handler)
 
 # Add CORS middleware to set allowed origins
 # Set all CORS enabled origins

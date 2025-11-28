@@ -9,6 +9,7 @@ from app.service_layer.schemas.schema_mixins import (
     HasTaskOrProjectStatus,
     HasCreatedAndUpdateTimestamps,
     HasProjectType,
+    HasRepeatFields,
 )
 
 
@@ -21,6 +22,7 @@ class ProjectResponse(
     HasTaskOrProjectStatus,
     HasCreatedAndUpdateTimestamps,
     HasProjectType,
+    HasRepeatFields,
 ):
     """Schema returned to API consumers typically via a GET
     request or returned after update a resource"""
@@ -35,8 +37,9 @@ class ProjectCreate(
     HasParentProjectId,
     HasTaskOrProjectStatus,
     HasProjectType,
+    HasRepeatFields,
 ):
-    """Schema used by API consumers to create a Project"""
+    """Schema used by API consumers to create a Projects"""
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,3 +1,4 @@
+import http
 from typing import Any, Union
 
 
@@ -11,23 +12,16 @@ class TasklyBaseException(Exception):
         status_code (int): HTTP status code associated with this error (default is 500).
     """
 
-    def __init__(
-        self,
-        error_message: str,
-        error: Union[Any, None] = None,
-        status_code: int = 500,
-    ):
+    def __init__(self, error_message: str, status_code: http.HTTPStatus):
         """
         Initialize an TasklyBaseException instance.
 
         Args:
             error_message (str): A human-readable message describing the error.
-            error (Any, optional): Additional context or request_data about the error.
             status_code (int, optional): HTTP status code to return (default is 500).
         """
         self.status_code = status_code
         self.error_message = error_message
-        self.error = error
         super().__init__(self.error_message)
 
     def __str__(self) -> str:
@@ -38,9 +32,8 @@ class TasklyBaseException(Exception):
             str: A formatted string containing the error code and message.
         """
         return (
-            f"TasklyBaseException(status_code={self.status_code}, "
+            f"{self.__class__.__name__}(status_code={self.status_code}, "
             f"message='{self.error_message}', "
-            f"error={self.error})"
         )
 
     def __repr__(self) -> str:
@@ -49,7 +42,7 @@ class TasklyBaseException(Exception):
         Returns:
             str: A string representation of the TasklyBaseException instance.
         """
-        return f"TasklyBaseException(error_message={self.error_message}, status_code={self.status_code}, error={self.error})"
+        return f"{self.__class__.__name__}(error_message={self.error_message}, status_code={self.status_code})"
 
     def __dict__(self) -> dict:
         """
@@ -60,5 +53,5 @@ class TasklyBaseException(Exception):
         """
         return {
             "error_message": self.error_message,
-            "error": self.error,
+            "status_code": self.status_code,
         }

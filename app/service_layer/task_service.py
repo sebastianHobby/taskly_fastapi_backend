@@ -1,12 +1,13 @@
 from typing import Union
 from uuid import UUID
 
-
-from app.repository_layer.task_filterset import TaskFilterParams
+from app.service_layer.schemas.common_field_search_schema import (
+    CommonSearchFieldsSchema,
+)
 from app.repository_layer.abstract_database_repository import (
     AbstractDatabaseRepository,
 )
-from app.repository_layer.repository_exceptions import TasklyRepositoryException
+from app.repository_layer.exceptions_repository import TasklyRepositoryException
 from app.service_layer.schemas.task_schemas import (
     TaskResponse,
     TaskCreate,
@@ -38,9 +39,9 @@ class TaskService:
         # Unique task name for given parent (including null parent or root case)
         # Todo fix me
         # if await self.get(name__match=request_data.name):
-        #     raise TasklyDuplicateData(message=f"Task '{request_data.name}' already exists'")
+        #     raise TasklyDuplicateData(message=f"Tasks '{request_data.name}' already exists'")
 
-        # Task types only allow certain fields
+        # Tasks types only allow certain fields
 
     async def _validate_delete(self, _id):
         pass
@@ -94,7 +95,7 @@ class TaskService:
         """
         Updates an existing record or multiple records in the database_manager based on specified filters. This method allows for precise targeting of records to update.
 
-        For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
+        For filtering details see [the Advanced Taskfilters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
             update_schema: A Pydantic schema containing the update request_data.
@@ -124,7 +125,7 @@ class TaskService:
         """
         Deletes a record or multiple records from the database_manager based on specified filters.
 
-        For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
+        For filtering details see [the Advanced Taskfilters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
             id: UUID of the record to delete
@@ -145,7 +146,9 @@ class TaskService:
         res = await self.repository.delete(commit=commit, id=id)
         return res
 
-    async def get_multi(self, filter_params: TaskFilterParams) -> list[TaskResponse]:
+    async def get_multi(
+        self, filter_params: CommonSearchFieldsSchema
+    ) -> list[TaskResponse]:
         """
         Fetches multiple records based on filters, supporting sorting and pagination.
 

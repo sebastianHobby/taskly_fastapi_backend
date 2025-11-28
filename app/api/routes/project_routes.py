@@ -12,7 +12,7 @@ from app.service_layer.schemas.project_schemas import (
     ProjectCreate,
 )
 from app.service_layer.project_service import ProjectService
-from ...repository_layer.project_filtersets import ProjectFilterParams
+from ...service_layer.schemas.common_field_search_schema import CommonSearchFieldsSchema
 
 project_router = APIRouter(prefix="/projects", tags=["Projects"])
 # noinspection DuplicatedCode
@@ -30,9 +30,11 @@ async def get(id: UUID):
     path="/",
     status_code=status.HTTP_200_OK,
     response_model=list[ProjectResponse],
-    description=(generate_multi_get_description(model_name="Project")),
+    description=(generate_multi_get_description(model_name="Projects")),
 )
-async def get_multi(filter_params: Annotated[ProjectFilterParams, Query()]):
+async def get_multi(
+    filter_params: Annotated[CommonSearchFieldsSchema, Query()],
+):
     return await project_service.get_multi(filter_params=filter_params)
 
 

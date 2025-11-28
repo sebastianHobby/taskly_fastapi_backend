@@ -1,17 +1,23 @@
 from abc import abstractmethod, ABC
 from enum import Enum
-from typing import Sequence, Any, TypedDict
+from typing import Sequence, Any
 from typing import (
     Union,
 )
 from uuid import UUID
 
 from pydantic import BaseModel as BaseSchemaModel
-import sqlalchemy
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.repository_layer.exceptions_repository import TasklyRepositoryException
 from app.repository_layer.models.models import DatabaseBaseModel
-from app.repository_layer.repository_exceptions import TasklyRepositoryException
+from app.repository_layer.util_search_manager import (
+    RepositoryCommonSearchFieldManager,
+)
+from app.service_layer.schemas.common_field_search_schema import (
+    CommonSearchFieldsSchema,
+)
 
 
 class CrudActions(Enum):
@@ -72,27 +78,10 @@ class AbstractDatabaseRepository(ABC):
         """
         pass
 
-    @abstractmethod
-    async def validate_filter_params(
-        self, filter_params: dict, action: CrudActions
-    ) -> dict:
-        """Used to check if filter params are valid, note this is only used in get_multi at the moment
-        but filters could also be used for updates,deletes etc in future.
-        Returns validated filter_params as dict"""
-        return filter_params
-
-    @abstractmethod
-    async def get_filterset(self, params: dict, session: AsyncSession) -> Any:
-        """Returns a SQLAlchemy statement object for the appropriate model class
-        e.g.
-        base_query = select(Project) # equivalent to select * from [project table]
-        filterset  = TaskFilterset(session=session,query=base_query)"""
-        pass
-
     @property
     @abstractmethod
     async def model_class(self):
-        """Return the database model class e.g. return Project"""
+        """Return the database model class e.g. return Projects"""
         pass
 
     @property
@@ -193,47 +182,40 @@ class AbstractDatabaseRepository(ABC):
         return await self.dump_model_to_dict(model)
 
     async def filter(
-        self, filter_params: BaseSchemaModel, action: CrudActions, session: AsyncSession
+        self,
+        filter_params: CommonSearchFieldsSchema,
+        session: AsyncSession = None,
     ) -> Sequence[DatabaseBaseModel]:
         """Applies filter rules based on parameters and filterset rules retrieved from get_filterset.
         Returns list of database model objects or empty list"""
 
-        # Make pagination mandatory for all requests.
-        if not hasattr(filter_params, "page") or not hasattr(
-            filter_params, "itemsPerPage"
-        ):
+        if not isinstance(filter_params, CommonSearchFieldsSchema):
+            # Only allow filters that are a subclass of CommonSearchFieldsSchema
+            # This allows us to enforce pagination and a base interface search interface
+            # for all models
             raise TasklyRepositoryException(
-                error_message=f"Mandatory pagination values missing (page and itemsPerPage)",
-                status_code=409,
+                error_message="Filter params must be an instance of/subclass instance of CommonSearchFieldsSchema",
+                status_code=500,
             )
 
-        # Convert pagination values to limit/offset model supported by Filterset utility
-        params_dict = filter_params.model_dump(
-            exclude_none=True, exclude=("page", "itemsPerPage")
-        )
-        limit = filter_params.page
-        offset = filter_params.itemsPerPage * limit - 1
-        params_dict["pagination"] = (limit, offset)
+        if session is None:
+            session = self.session_factory()
 
-        validated_parms_dict = await self.validate_filter_params(
-            filter_params=params_dict, action=action
+        base_query = select(await self.model_class)
+        filterset = RepositoryCommonSearchFieldManager(
+            session=session, query=base_query
         )
-        # Filterset defines the rules and builds SQL query using SQLAlchemy
-        # We use passed in session as the filter may be after an update/have pending data and we do not
-        # want to end previous session (e.g. session started by GET)
-        filterset = await self.get_filterset(
-            session=session, params=validated_parms_dict
-        )
-
+        filter_params_dict = filter_params.model_dump(exclude_none=True)
+        filtered_result = await filterset.filter(filter_params_dict)
         await self.post_processing(
             request_action=CrudActions.FILTER, request_data=filter_params
         )
 
-        return await filterset.filter(validated_parms_dict)
+        return filtered_result
 
     async def get_multi(
         self,
-        filter_params: BaseSchemaModel,
+        filter_params: CommonSearchFieldsSchema,
     ) -> list[dict]:
         """
         Fetches multiple records based on filters, supporting sorting, pagination.
@@ -243,12 +225,11 @@ class AbstractDatabaseRepository(ABC):
         Returns:
             A list of dictionaries representing the retrieved records
         """
+        # Check filter params are valid type.
         session = self.session_factory()
-        # Filter method will call validation and post processing which subclasses can override
+        # Taskfilters method will call validation and post processing which subclasses can override
         # so no calls here for get_multi
-        model_list = await self.filter(
-            session=session, filter_params=filter_params, action=CrudActions.READ
-        )
+        model_list = await self.filter(session=session, filter_params=filter_params)
         model_list_dict = [await self.dump_model_to_dict(model=m) for m in model_list]
         return model_list_dict
 
@@ -261,9 +242,10 @@ class AbstractDatabaseRepository(ABC):
         """
         Updates an existing record based on Id
 
-        For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
+        For filtering details see [the Advanced Taskfilters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
+            id: Id of the record to update
             commit: If `True`, commits the transaction immediately. Default is `True`.
         Raises:
             TasklyRepositoryException if there is no resource matching the ID provided
@@ -310,7 +292,7 @@ class AbstractDatabaseRepository(ABC):
         """
         Deletes a record or multiple records from the database_manager based on specified filters.
 
-        For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
+        For filtering details see [the Advanced Taskfilters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
             id: UUID of the resource you wish to delete

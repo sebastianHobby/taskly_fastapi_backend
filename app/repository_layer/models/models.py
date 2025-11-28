@@ -1,7 +1,14 @@
 from uuid import UUID
 
+import sqlalchemy
 from sqlalchemy import ForeignKey, CheckConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+    DeclarativeBase,
+    declared_attr,
+)
 from sqlalchemy_mixins.repr import ReprMixin
 from sqlalchemy_mixins.serialize import SerializeMixin
 
@@ -9,9 +16,10 @@ from app.repository_layer.models.model_mixins import (
     HasOptionalStartAndDeadlineDates,
     HasCommonFields,
     HasStatus,
+    HasOptionalDescription,
+    HasRepeatFields,
 )
 from app.repository_layer.models.enumerations import ProjectTypes
-import sqlalchemy
 from sqlalchemy.dialects.postgresql import JSONB
 
 
@@ -29,58 +37,70 @@ class DatabaseBaseModel(DeclarativeBase, ReprMixin, SerializeMixin):
     pass
 
 
-class Project(
+class Projects(
     HasCommonFields,
-    HasOptionalStartAndDeadlineDates,
     HasStatus,
+    HasOptionalDescription,
+    HasOptionalStartAndDeadlineDates,
+    HasRepeatFields,
     DatabaseBaseModel,
 ):
     """Represents a project which can contain child projects or tasks.
-    Project types such as area are used to apply business rules e.g. an area of focus/life value
+    Projects types such as area are used to apply business rules e.g. an area of focus/life value
     should not have a deadline"""
 
     __tablename__ = "projects"
-    __repr_attrs__ = ["name"]  # we want to display name in repr string
-    name = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    description = sqlalchemy.Column(sqlalchemy.String, nullable=True)
+
+    # Fields - Note several fields are inherited as mixin
     type: Mapped[ProjectTypes] = mapped_column(
         nullable=False, default=ProjectTypes.project
     )
 
-    child_project = relationship("Project")
+    # Relationships
+    child_project = relationship("Projects")
     parent_project_id = sqlalchemy.Column(
         sqlalchemy.UUID, sqlalchemy.ForeignKey("projects.id")
     )
 
+    # Used for pretty printing with errors
+    __repr_attrs__ = ["name"]  # we want to display name in repr string
 
-class Task(
+
+class Tasks(
     HasCommonFields,
+    HasOptionalDescription,
     HasStatus,
     HasOptionalStartAndDeadlineDates,
+    HasRepeatFields,
     DatabaseBaseModel,
 ):
-    __repr_attrs__ = ["name"]  # we want to display name in repr string
-    name: Mapped[str] = mapped_column(nullable=False)
-    description: Mapped[str] = mapped_column(nullable=True)
+    __tablename__ = "tasks"
+
+    # Fields - Note several fields are inherited as mixin
     project_id = sqlalchemy.Column(
         sqlalchemy.UUID, sqlalchemy.ForeignKey("projects.id"), nullable=True
     )
     parent_task_id: Mapped[UUID] = mapped_column(ForeignKey("tasks.id"), nullable=True)
-    child_task = relationship("Task")
-    parent_project = relationship("Project")
+    child_task = relationship("Tasks")
+    parent_project = relationship("Projects")
 
-    __tablename__ = "tasks"
+    # Define indexes and constraints
     __table_args__ = (
         CheckConstraint("coalesce(project_id , parent_task_id) is not null"),
     )  # One of the two must be not null
 
+    # Used for pretty printing with errors
+    __repr_attrs__ = ["name"]  # we want to display name in repr string
 
-class Filter(
+
+class Taskfilters(
     HasCommonFields,
     DatabaseBaseModel,
 ):
+    __tablename__ = "taskfilters"
+
+    # Fields - Note several fields are inherited as mixin
+    rules = sqlalchemy.Column(JSONB, nullable=False)
+
+    # Used for pretty printing with errors
     __repr_attrs__ = ["name"]  # we want to display name in repr string
-    name: Mapped[str] = mapped_column(nullable=False)
-    description = sqlalchemy.Column(sqlalchemy.String, nullable=True)
-    filter_as_json = sqlalchemy.Column(JSONB, nullable=False)
-    __tablename__ = "filters"

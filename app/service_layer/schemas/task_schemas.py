@@ -8,16 +8,19 @@ from pydantic import (
     Field,
 )
 
+from app.repository_layer.models.enumerations import RepeatIntervalType
 from app.service_layer.schemas.schema_mixins import (
     HasId,
     HasCreatedAndUpdateTimestamps,
     HasOptionalStartAndDeadlineDates,
     HasNameAndOptionalDescription,
     HasTaskOrProjectStatus,
+    HasRepeatFields,
 )
+from app.service_layer.service_exceptions import TasklyServiceValidationError
 
 
-class TaskBase(BaseSchemaModel):
+class TaskBase(BaseSchemaModel, HasRepeatFields):
     project_id: Annotated[
         UUID, Field(description="One of project_id or parent_task_id must be populated")
     ] = None
@@ -29,9 +32,13 @@ class TaskBase(BaseSchemaModel):
     def check_is_subtask_or_has_parent_project(self):
         """DatabaseManager constraint - either parent task or project required"""
         if self.project_id is None and self.parent_task_id is None:
-            raise ValueError("Task requires either a project_id or parent_task_id")
+            raise TasklyServiceValidationError(
+                "Tasks requires either a project_id or parent_task_id"
+            )
         elif self.project_id and self.parent_task_id is None:
-            raise ValueError("Task can not have project_id AND parent_task_id")
+            raise TasklyServiceValidationError(
+                "Tasks can not have project_id AND parent_task_id"
+            )
         return self
 
 
@@ -55,7 +62,7 @@ class TaskCreate(
     HasNameAndOptionalDescription,
     HasTaskOrProjectStatus,
 ):
-    """Schema used by API consumers to create a Task"""
+    """Schema used by API consumers to create a Tasks"""
 
     model_config = ConfigDict(from_attributes=True)
 

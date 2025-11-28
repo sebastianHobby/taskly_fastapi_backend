@@ -5,7 +5,7 @@ from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, status, Query, Depends
 
 from .utils import generate_multi_get_description
-from ...repository_layer.task_filterset import TaskFilterParams
+from ...service_layer.schemas.common_field_search_schema import CommonSearchFieldsSchema
 from app.core_layer.dependency_injector import TasklyDependencyContainer
 from app.service_layer.schemas.task_schemas import (
     TaskResponse,
@@ -30,9 +30,11 @@ async def get(id: UUID):
     path="/",
     status_code=status.HTTP_200_OK,
     response_model=list[TaskResponse],
-    description=(generate_multi_get_description(model_name="Task")),
+    description=(generate_multi_get_description(model_name="Tasks")),
 )
-async def get_multi(filter_params: Annotated[TaskFilterParams, Query()]):
+async def get_multi(
+    filter_params: Annotated[CommonSearchFieldsSchema, Query()],
+):
     return await task_service.get_multi(filter_params=filter_params)
 
 

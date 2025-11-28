@@ -5,12 +5,14 @@ from uuid import UUID
 from app.repository_layer.abstract_database_repository import (
     AbstractDatabaseRepository,
 )
-from app.repository_layer.base_filtersets import BaseTasklyFilterParams
-from app.repository_layer.repository_exceptions import TasklyRepositoryException
-from app.service_layer.schemas.filter_schemas import (
-    FilterResponse,
-    FilterCreate,
-    FilterUpdate,
+from app.service_layer.schemas.common_field_search_schema import (
+    CommonSearchFieldsSchema,
+)
+from app.repository_layer.exceptions_repository import TasklyRepositoryException
+from app.service_layer.schemas.taskfilter_schemas import (
+    TaskFilterResponse,
+    TaskFilterUpdate,
+    TaskFilterCreate,
 )
 from app.service_layer.service_exceptions import TasklyServiceException
 
@@ -23,33 +25,33 @@ class FilterService:
 
         self.repository = repository
 
-    async def _validate_update_or_create(self, data: Union[FilterUpdate, FilterCreate]):
+    async def _validate_update_or_create(
+        self, data: Union[TaskFilterUpdate, TaskFilterCreate]
+    ):
         # Todo move validations for just filter down a layer
         #  Keep cross model validations here
 
         """Handles validations done before calling repository_layer to update request_data.
         Note basic request_data type validations are already done by pydantic. This logic
         caters for specific business rules and relationships between domain entities"""
-        if isinstance(data, FilterUpdate):
-            if not await self.get(id=data.id):
-                raise ValueError
+
         #     raise TasklyDataNotFound(id=data.id)
 
         # Unique filter name for given parent (including null parent or root case)
         # Todo fix me
         # if await self.get(name__match=request_data.name):
-        #     raise TasklyDuplicateData(message=f"Filter '{request_data.name}' already exists'")
+        #     raise TasklyDuplicateData(message=f"Taskfilters '{request_data.name}' already exists'")
 
-        # Filter types only allow certain fields
+        # Taskfilters types only allow certain fields
 
     async def _validate_delete(self, _id):
         pass
 
     async def create(
         self,
-        create_schema: FilterCreate,
+        create_schema: TaskFilterCreate,
         commit=True,
-    ) -> FilterResponse:
+    ) -> TaskFilterResponse:
         """
         Create a new record in the database_manager.
         Args:
@@ -63,12 +65,12 @@ class FilterService:
             data=create_schema,
             commit=commit,
         )
-        return FilterResponse.model_validate(res)
+        return TaskFilterResponse.model_validate(res)
 
     async def get(
         self,
         id: UUID,
-    ) -> FilterResponse:
+    ) -> TaskFilterResponse:
         """
         Create a new record in the database_manager.
         Args:
@@ -83,18 +85,18 @@ class FilterService:
                 error_message=e.error_message, status_code=e.status_code
             ) from e
 
-        return FilterResponse.model_validate(res)
+        return TaskFilterResponse.model_validate(res)
 
     async def update(
         self,
         id: UUID,
-        update_schema: FilterUpdate,
+        update_schema: TaskFilterUpdate,
         commit=True,
-    ) -> FilterResponse:
+    ) -> TaskFilterResponse:
         """
         Updates an existing record or multiple records in the database_manager based on specified filters. This method allows for precise targeting of records to update.
 
-        For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
+        For filtering details see [the Advanced Taskfilters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
             id: The Id for the resource to update
@@ -115,7 +117,7 @@ class FilterService:
             commit=commit,
             id=id,
         )
-        return FilterResponse.model_validate(res)
+        return TaskFilterResponse.model_validate(res)
 
     async def delete(
         self,
@@ -125,7 +127,7 @@ class FilterService:
         """
         Deletes a record or multiple records from the database_manager based on specified filters.
 
-        For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
+        For filtering details see [the Advanced Taskfilters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
             id: UUID of the record to delete
@@ -147,8 +149,8 @@ class FilterService:
         return res
 
     async def get_multi(
-        self, filter_params: BaseTasklyFilterParams
-    ) -> list[FilterResponse]:
+        self, filter_params: CommonSearchFieldsSchema
+    ) -> list[TaskFilterResponse]:
         """
         Fetches multiple records based on filters, supporting sorting and pagination.
 
@@ -158,5 +160,6 @@ class FilterService:
             A list of the type specified in return_type
         """
         results = await self.repository.get_multi(filter_params=filter_params)
-        result_schema = [FilterResponse.model_validate(item) for item in results]
+
+        result_schema = [TaskFilterResponse.model_validate(item) for item in results]
         return result_schema

@@ -4,10 +4,12 @@ from dependency_injector import containers, providers
 
 from .config import Settings
 from .database import *
-from ..repository_layer.filter_database_repository import FilterDatabaseRepository
+from ..repository_layer.taskfilters_database_repository import (
+    TaskfiltersDatabaseRepository,
+)
 from ..repository_layer.project_database_repository import ProjectDatabaseRepository
 from ..repository_layer.task_database_repository import TaskDatabaseRepository
-from ..service_layer.filter_service import FilterService
+from ..service_layer.taskfilter_service import FilterService
 from ..service_layer.project_service import ProjectService
 
 
@@ -36,7 +38,7 @@ class TasklyDependencyContainer(containers.DeclarativeContainer):
     task_service = providers.Factory(ProjectService, repository=task_repo)
 
     filter_repo = providers.Factory(
-        FilterDatabaseRepository, session_factory=session_factory
+        TaskfiltersDatabaseRepository, session_factory=session_factory
     )
     filter_service = providers.Factory(FilterService, repository=filter_repo)
     # task_service = providers.Factory(

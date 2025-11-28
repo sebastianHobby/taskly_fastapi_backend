@@ -1,12 +1,13 @@
 from typing import Union
 from uuid import UUID
 
-
-from app.repository_layer.project_filtersets import ProjectFilterParams
+from app.service_layer.schemas.common_field_search_schema import (
+    CommonSearchFieldsSchema,
+)
 from app.repository_layer.abstract_database_repository import (
     AbstractDatabaseRepository,
 )
-from app.repository_layer.repository_exceptions import TasklyRepositoryException
+from app.repository_layer.exceptions_repository import TasklyRepositoryException
 from app.service_layer.schemas.project_schemas import (
     ProjectResponse,
     ProjectCreate,
@@ -26,23 +27,9 @@ class ProjectService:
     async def _validate_update_or_create(
         self, data: Union[ProjectUpdate, ProjectCreate]
     ):
-        # Todo move validations for just project down a layer
-        #  Keep cross model validations here
-
-        """Handles validations done before calling repository_layer to update request_data.
-        Note basic request_data type validations are already done by pydantic. This logic
-        caters for specific business rules and relationships between domain entities"""
-        if isinstance(data, ProjectUpdate):
-            if not await self.get(id=data.id):
-                raise ValueError
-        #     raise TasklyDataNotFound(id=data.id)
-
-        # Unique project name for given parent (including null parent or root case)
-        # Todo fix me
-        # if await self.get(name__match=request_data.name):
+        pass
+        # if await self.get_multi(filter_params=)
         #     raise TasklyDuplicateData(message=f"Project '{request_data.name}' already exists'")
-
-        # Project types only allow certain fields
 
     async def _validate_delete(self, _id):
         pass
@@ -96,7 +83,7 @@ class ProjectService:
         """
         Updates an existing record or multiple records in the database_manager based on specified filters. This method allows for precise targeting of records to update.
 
-        For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
+        For filtering details see [the Advanced Taskfilters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
             update_schema: A Pydantic schema containing the update request_data.
@@ -126,7 +113,7 @@ class ProjectService:
         """
         Deletes a record or multiple records from the database_manager based on specified filters.
 
-        For filtering details see [the Advanced Filters documentation](../advanced/crud.md/#advanced-filters)
+        For filtering details see [the Advanced Taskfilters documentation](../advanced/crud.md/#advanced-filters)
 
         Args:
             id: UUID of the record to delete
@@ -148,7 +135,7 @@ class ProjectService:
         return res
 
     async def get_multi(
-        self, filter_params: ProjectFilterParams
+        self, filter_params: CommonSearchFieldsSchema
     ) -> list[ProjectResponse]:
         """
         Fetches multiple records based on filters, supporting sorting and pagination.
